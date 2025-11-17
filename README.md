@@ -1,241 +1,186 @@
-# Quick Start Guide - Assessment Management Tool
+# Assessment Management Tool
 
-## 🎯 What I've Built So Far
+A comprehensive web-based system for managing academic assessments through their complete lifecycle, from creation to publication. Built with Spring Boot and React, this tool supports multiple assessment types (coursework, tests, and exams) with robust role-based workflows and state management.
 
-I've created a solid **foundation** for your Assessment Management Tool. Here's what's ready:
+## Overview
 
-### ✅ Complete Components
+The Assessment Management Tool streamlines the assessment process for universities by providing a structured workflow system that enforces quality checks and maintains audit trails. The system supports independent checker requirements, external examiner feedback, and flexible role assignments while ensuring compliance with academic regulations.
 
-1. **Project Infrastructure**
-   - Maven project with all necessary dependencies
-   - Spring Boot 3.5.7 with Java 21
-   - PostgreSQL database integration
-   - Flyway migration system
+## Key Features
 
-2. **Data Layer (100% Complete)**
-   - 11 JPA entities covering the entire domain model
-   - 6 enums for type safety
-   - 11 Spring Data repositories with custom queries
-   - Complete database schema with constraints and indexes
+- **Multi-Type Assessment Support**: Manage coursework (CW), tests (TEST), and exams (EXAM) with type-specific workflows
+- **24-State Workflow Engine**: Comprehensive state machine with transition validation and permission checks
+- **Role-Based Access Control**: Support for setters, checkers, module leads, moderators, exams officers, and external examiners
+- **Independent Checker Validation**: Automatic enforcement of checker independence rules
+- **Assessment Content Management**: Upload and track assessment materials with secure file handling
+- **Transition History**: Complete audit trail of all state changes with timestamps and user attribution
+- **Module Staff Management**: Organize teaching staff with role assignments (MODULE_LEAD, MODERATOR, STAFF)
+- **External Examiner Integration**: Dedicated workflow steps for external feedback and responses
 
-3. **Database Migrations**
-   - V1__init.sql: Full schema with all tables
-   - V2__seed.sql: Test data with 6 users, 1 module, 3 assessments
+## Technology Stack
 
-4. **DevOps Setup**
-   - Docker Compose configuration
-   - Dockerfile for containerization
-   - Environment configuration templates
+**Backend:**
+- Spring Boot 3.5.7
+- Java 21
+- H2 Database (in-memory)
+- Spring Security (session-based authentication)
+- Flyway Database Migrations
+- Spring Data JPA
 
-5. **Documentation**
-   - Comprehensive README
-   - Project structure documentation
-   - Development roadmap
+**Frontend:**
+- React 18
+- Vite
+- React Query (TanStack Query)
+- React Router
+- Tailwind CSS
+- Axios
 
-## 🚀 Getting Started
+## Getting Started
 
-### Option 1: Docker (Easiest)
+### Prerequisites
 
-```powershell
-# Navigate to your project
-cd c:\Users\marvo\Desktop\Assessment_management_tool
-#do
-npm i 
-#run
-./start-app.ps1 
+- Java 21 or higher
+- Node.js 18 or higher
+- Maven 3.8+
 
+### Quick Start
 
-## 📊 Verify It's Working
+```bash
+# Clone the repository
+git clone https://github.com/mvovides/Assessment_management_tool.git
+cd Assessment_management_tool
 
-Once the application starts, you should see:
-- Flyway migrations running automatically
-- "Started AssessmentManagementToolApplication" message
-- Server running on port 8080
+# Install frontend dependencies
+cd web
+npm install
+cd ..
 
-Visit: http://localhost:8080/swagger-ui.html (once controllers are implemented)
+# Run the application (Windows)
+./start-app.ps1
 
-## 🧪 Test Database Access
+# Or run manually:
+# Terminal 1 - Backend
+./mvnw spring-boot:run
 
-You can verify the seed data was loaded:
-
-```powershell
-# Connect to database
-psql -U assessment_user -d assessment_db -h localhost
-
-# Check users
-SELECT name, email, base_type FROM app_user;
-
-# Check modules
-SELECT code, title, academic_year FROM module;
-
-# Check assessments
-SELECT title, type, current_state FROM assessment;
-
-# Exit
-\q
+# Terminal 2 - Frontend
+cd web
+npm run dev
 ```
 
-## 📝 What's Next?
+The application will be available at:
+- Frontend: http://localhost:5174
+- Backend API: http://localhost:8080
 
-To complete the system, you need to implement (in recommended order):
+### Default Login Credentials
 
-### Priority 1: Make it Functional (Backend API)
-1. **Security Layer**
-   - Spring Security configuration
-   - UserDetailsService implementation
-   - Session management
-   - Password encoding
-
-2. **Core Services**
-   - TransitionService (state machine logic)
-   - ValidationService (independence checks)
-   - UserService, ModuleService, AssessmentService
-
-3. **DTOs and Mappers**
-   - Create DTOs for API requests/responses
-   - MapStruct mappers or manual converters
-
-4. **REST Controllers**
-   - Authentication endpoints
-   - User management
-   - Module management
-   - Assessment operations
-   - Transitions and feedback
-
-### Priority 2: Advanced Features
-5. **Scheduled Jobs**
-   - Auto-transition for EXAM_TAKEN state
-   - Working day calculator
-
-6. **CSV Import**
-   - CSV parser
-   - Validation logic
-   - Bulk import endpoints
-
-### Priority 3: Frontend
-7. **React Setup**
-   - Initialize Vite project
-   - Configure routing and state management
-   - Set up Tailwind CSS
-
-8. **UI Components**
-   - Authentication pages
-   - Dashboard
-   - Module and Assessment views
-   - Admin panels
-
-### Priority 4: Testing & Deployment
-9. **Tests**
-   - Unit tests
-   - Integration tests with Testcontainers
-   - E2E tests with Playwright
-
-10. **Deployment**
-    - Docker Compose with all services
-    - Production configuration
-    - CI/CD pipelines
-
-## 💡 Development Tips
-
-### Hot Reload
-The project includes Spring Boot DevTools. Changes to Java classes will trigger automatic restart.
-
-### Database Migrations
-To reset the database:
-```powershell
-./mvnw flyway:clean flyway:migrate
+```
+Admin: admin@sheffield.ac.uk / admin123
+Academic: bob.brown@sheffield.ac.uk / admin123
 ```
 
-### View Logs
-```powershell
-# Logs are in console output
-# To save to file:
-./mvnw spring-boot:run > app.log 2>&1
-```
+## Architecture
 
-### Code Quality
-Run before committing:
-```powershell
-# Compile and run tests
-./mvnw clean verify
+### Assessment State Workflows
 
-# Check code coverage (opens in browser)
-start target/site/jacoco/index.html
-```
+**Coursework (CW) Flow:**
+DRAFT → READY_FOR_CHECK → RELEASED → DEADLINE_PASSED → MARKING → MODERATED → FEEDBACK_RETURNED → APPROVED → PUBLISHED
 
-## 🔑 Seed User Credentials
+**Test (TEST) Flow:**
+DRAFT → READY_FOR_CHECK → TEST_TAKEN → MARKING → MODERATED → RESULTS_RETURNED → APPROVED → PUBLISHED
 
-Use these to test when authentication is implemented:
+**Exam (EXAM) Flow:**
+DRAFT → READY_FOR_CHECK → EXAM_OFFICER_CHECK → EXTERNAL_FEEDBACK → SETTER_RESPONSE → FINAL_CHECK → SENT_TO_PRINTING → EXAM_TAKEN → MARKING → ADMIN_MARK_CHECK → MODERATED → APPROVED → PUBLISHED
 
-| User | Email | Password | Role | Special |
-|------|-------|----------|------|---------|
-| Admin | admin@sheffield.ac.uk | password123 | Teaching Support | Can override |
-| Dr. Alice Anderson | alice.anderson@sheffield.ac.uk | password123 | Academic | Module Lead |
-| Dr. Bob Brown | bob.brown@sheffield.ac.uk | password123 | Academic | Setter |
-| Dr. Carol Chen | carol.chen@sheffield.ac.uk | password123 | Academic | Checker |
-| Dr. David Davies | david.davies@sheffield.ac.uk | password123 | Academic | Exams Officer |
-| Prof. Emma Edwards | emma.edwards@external.ac.uk | password123 | External Examiner | - |
+### Role Permissions
 
-## 📂 Project Structure
+- **SETTER**: Creates assessment content, submits for checking
+- **CHECKER**: Reviews and approves/rejects assessment content (must be independent)
+- **MODULE_LEAD**: Manages module staff and assessments
+- **MODERATOR**: Reviews marked assessments, auto-assigned as checker
+- **EXAMS_OFFICER**: Manages exam-specific workflows
+- **EXTERNAL_EXAMINER**: Provides external feedback on exam assessments
+- **ADMIN**: Full system access with override capabilities
+
+## Project Structure
 
 ```
 Assessment_management_tool/
-├── src/main/java/.../
+├── src/main/java/uk/ac/sheffield/Assessment_management_tool/
+│   ├── controller/          # REST API endpoints
+│   ├── service/             # Business logic layer
 │   ├── domain/
-│   │   ├── entity/          ✅ Complete (11 entities)
-│   │   └── enums/           ✅ Complete (6 enums)
-│   ├── repository/          ✅ Complete (11 repositories)
-│   ├── service/             ⏳ To implement
-│   ├── controller/          ⏳ To implement
-│   ├── dto/                 ⏳ To implement
-│   ├── security/            ⏳ To implement
-│   └── config/              ⏳ To implement
+│   │   ├── entity/          # JPA entities
+│   │   └── enums/           # Type enumerations
+│   ├── repository/          # Data access layer
+│   ├── dto/                 # Data transfer objects
+│   ├── security/            # Authentication & authorization
+│   └── mapper/              # Entity-DTO mappers
 ├── src/main/resources/
-│   ├── db/migration/        ✅ Complete (2 scripts)
-│   └── application.properties ✅ Configured
-├── ops/                     ✅ Docker setup ready
-├── README.md                ✅ Comprehensive docs
-└── pom.xml                  ✅ All dependencies
+│   ├── db/migration/        # Flyway database migrations
+│   └── application.properties
+├── web/                     # React frontend
+│   ├── src/
+│   │   ├── pages/          # Page components
+│   │   ├── components/     # Reusable UI components
+│   │   ├── api/            # API client
+│   │   └── context/        # React context providers
+│   └── public/
+└── docs/                    # UML diagrams and documentation
 ```
 
-## 🆘 Troubleshooting
+## Database Schema
 
-### "Cannot connect to database"
-```powershell
-# Check if PostgreSQL is running
-docker ps  # Should show assessment-db
+The system uses 11 main entities:
+- **User**: System users with base types (ACADEMIC, TEACHING_SUPPORT, EXTERNAL_EXAMINER)
+- **Module**: Academic modules with staff assignments
+- **Assessment**: Assessment instances with type-specific workflows
+- **AssessmentRoleAssignment**: User role assignments per assessment
+- **AssessmentTransition**: Complete history of state changes
+- **ModuleStaffRole**: Module staff with roles (MODULE_LEAD, MODERATOR, STAFF)
+- **CheckerFeedback**: Feedback from checkers
+- **ExternalExaminerFeedback**: External examiner feedback
+- **SetterResponse**: Setter responses to feedback
+- **ModuleExternalExaminer**: External examiner assignments to modules
 
-# Or if using local PostgreSQL:
-pg_isready -U assessment_user
+## Development
+
+### Running Tests
+
+```bash
+# Backend tests
+./mvnw test
+
+# Frontend tests
+cd web
+npm test
 ```
 
-### "Table does not exist"
-```powershell
-# Flyway might not have run
-./mvnw flyway:info  # Check migration status
-./mvnw flyway:migrate  # Run migrations manually
+### Database Migrations
+
+Database schema is managed through Flyway migrations:
+- `V1__init.sql`: Initial schema
+- `V2__seed.sql`: Test data
+- `V3__add_assessment_content_fields.sql`: Content management fields
+
+### Building for Production
+
+```bash
+# Build backend
+./mvnw clean package
+
+# Build frontend
+cd web
+npm run build
 ```
 
-### "Port 8080 already in use"
-```powershell
-# Find and kill the process
-netstat -ano | findstr :8080
-taskkill /PID <process_id> /F
+## Contributing
 
-# Or change port in application.properties
-server.port=8081
-```
+This project was developed as part of an academic assessment management system. Contributions should follow the existing code structure and maintain compatibility with the state machine workflows.
 
-## 📞 Next Steps
+## License
 
-You have a **solid foundation**. The data layer is complete and production-ready. 
+This project is part of academic coursework at the University of Sheffield.
 
-**Recommended next action**: Start implementing the **Security Configuration** (Todo #5) to enable authentication, then build the **Services Layer** (Todo #6) for business logic.
+## Support
 
-Would you like me to continue implementing these components? I can:
-1. Create the Spring Security configuration
-2. Build the TransitionService with state machine logic
-3. Implement DTOs and the first REST controllers
-4. Add comprehensive tests
-
-Let me know how you'd like to proceed!
+For issues or questions, please open an issue on the GitHub repository.

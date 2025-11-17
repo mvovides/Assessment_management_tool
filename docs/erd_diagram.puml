@@ -1,0 +1,131 @@
+@startuml Assessment Management Tool - ERD
+
+' Styling
+skinparam linetype ortho
+skinparam backgroundColor #FFFFFF
+
+entity "User\n(app_user)" as user {
+  * **id** : UUID <<PK>>
+  --
+  * name : VARCHAR(255)
+  * email : VARCHAR(255) <<UNIQUE>>
+  * password : VARCHAR(255)
+  * base_type : VARCHAR(50)
+  * exams_officer : BOOLEAN
+}
+
+entity "Module" as module {
+  * **id** : UUID <<PK>>
+  --
+  * code : VARCHAR(20)
+  * title : VARCHAR(255)
+  * academic_year : VARCHAR(10)
+  --
+  <<UNIQUE>> (code, academic_year)
+}
+
+entity "Assessment" as assessment {
+  * **id** : UUID <<PK>>
+  --
+  * module_id : UUID <<FK>>
+  * title : VARCHAR(255)
+  * type : VARCHAR(50)
+  * state : VARCHAR(50)
+  deadline : DATE
+  test_date : DATE
+  exam_date : DATE
+  external_feedback : TEXT
+  setter_response : TEXT
+}
+
+entity "Module Staff Role\n(module_staff_role)" as module_staff {
+  * **id** : UUID <<PK>>
+  --
+  * module_id : UUID <<FK>>
+  * user_id : UUID <<FK>>
+  * role : VARCHAR(50)
+  --
+  <<UNIQUE>> (module_id, user_id, role)
+}
+
+entity "Assessment Role\n(assessment_role_assignment)" as assessment_role {
+  * **id** : UUID <<PK>>
+  --
+  * assessment_id : UUID <<FK>>
+  * user_id : UUID <<FK>>
+  * role : VARCHAR(50)
+  --
+  <<UNIQUE>> (assessment_id, user_id, role)
+}
+
+entity "Module External Examiner\n(module_external_examiner)" as module_ee {
+  * **id** : UUID <<PK>>
+  --
+  * module_id : UUID <<FK>>
+  * examiner_id : UUID <<FK>>
+  --
+  <<UNIQUE>> (module_id, examiner_id)
+}
+
+entity "State Transition\n(state_transition)" as transition {
+  * **id** : UUID <<PK>>
+  --
+  * assessment_id : UUID <<FK>>
+  * from_state : VARCHAR(50)
+  * to_state : VARCHAR(50)
+  * transitioned_by : UUID <<FK>>
+  * transitioned_at : TIMESTAMP
+  comment : TEXT
+}
+
+' Relationships
+module ||--o{ assessment : "contains"
+module ||--o{ module_staff : "has staff"
+module ||--o{ module_ee : "has examiners"
+
+user ||--o{ module_staff : "has roles in"
+user ||--o{ assessment_role : "assigned to"
+user ||--o{ module_ee : "examines"
+user ||--o{ transition : "performs"
+
+assessment ||--o{ assessment_role : "has roles"
+assessment ||--o{ transition : "has history"
+
+note right of user
+  **User Base Types:**
+  - TEACHING_SUPPORT
+  - ACADEMIC
+  - EXTERNAL_EXAMINER
+  
+  **Exams Officer:**
+  Can only be ACADEMIC
+end note
+
+note right of module_staff
+  **Module Roles:**
+  - MODULE_LEAD (mandatory)
+  - MODERATOR (mandatory)
+  - STAFF (optional)
+end note
+
+note right of assessment
+  **Assessment Types:**
+  - COURSEWORK (CW)
+  - TEST
+  - EXAM
+  
+  **Assessment States:**
+  See workflow diagram
+  for complete state machine
+end note
+
+note right of assessment_role
+  **Assessment Roles:**
+  - SETTER (creates)
+  - CHECKER (approves)
+  
+  Checker must be independent
+  (not module lead/staff/setter)
+end note
+
+@enduml

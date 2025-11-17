@@ -1,0 +1,353 @@
+@startuml Assessment Management Tool - Class Diagram
+
+!define ENTITY class
+!define ENUM enum
+!define SERVICE class
+!define CONTROLLER class
+
+' Styling
+skinparam backgroundColor #FFFFFF
+skinparam classBackgroundColor #F9F9F9
+skinparam classBorderColor #333333
+skinparam stereotypeCBackgroundColor #ADD8E6
+
+package "Domain Entities" {
+    ENTITY User {
+        - UUID id
+        - String name
+        - String email
+        - String password
+        - UserBaseType baseType
+        - boolean examsOfficer
+        --
+        + getId(): UUID
+        + getName(): String
+        + getEmail(): String
+        + getBaseType(): UserBaseType
+        + isExamsOfficer(): boolean
+    }
+
+    ENTITY Module {
+        - UUID id
+        - String code
+        - String title
+        - String academicYear
+        --
+        + getId(): UUID
+        + getCode(): String
+        + getTitle(): String
+        + getAcademicYear(): String
+    }
+
+    ENTITY Assessment {
+        - UUID id
+        - UUID moduleId
+        - String title
+        - AssessmentType type
+        - AssessmentState state
+        - LocalDate deadline
+        - LocalDate testDate
+        - LocalDate examDate
+        - String externalFeedback
+        - String setterResponse
+        --
+        + getId(): UUID
+        + getModuleId(): UUID
+        + getTitle(): String
+        + getType(): AssessmentType
+        + getState(): AssessmentState
+        + transitionTo(AssessmentState): void
+    }
+
+    ENTITY ModuleStaffRole {
+        - UUID id
+        - UUID moduleId
+        - UUID userId
+        - ModuleRole role
+        --
+        + getId(): UUID
+        + getModuleId(): UUID
+        + getUserId(): UUID
+        + getRole(): ModuleRole
+    }
+
+    ENTITY AssessmentRoleAssignment {
+        - UUID id
+        - UUID assessmentId
+        - UUID userId
+        - AssessmentRole role
+        --
+        + getId(): UUID
+        + getAssessmentId(): UUID
+        + getUserId(): UUID
+        + getRole(): AssessmentRole
+    }
+
+    ENTITY ModuleExternalExaminer {
+        - UUID id
+        - UUID moduleId
+        - UUID examinerId
+        --
+        + getId(): UUID
+        + getModuleId(): UUID
+        + getExaminerId(): UUID
+    }
+
+    ENTITY StateTransition {
+        - UUID id
+        - UUID assessmentId
+        - AssessmentState fromState
+        - AssessmentState toState
+        - UUID transitionedBy
+        - LocalDateTime transitionedAt
+        - String comment
+        --
+        + getId(): UUID
+        + getAssessmentId(): UUID
+        + getFromState(): AssessmentState
+        + getToState(): AssessmentState
+    }
+}
+
+package "Enumerations" {
+    ENUM UserBaseType {
+        TEACHING_SUPPORT
+        ACADEMIC
+        EXTERNAL_EXAMINER
+    }
+
+    ENUM ModuleRole {
+        MODULE_LEAD
+        STAFF
+        MODERATOR
+    }
+
+    ENUM AssessmentType {
+        COURSEWORK
+        TEST
+        EXAM
+    }
+
+    ENUM AssessmentState {
+        DRAFT
+        READY_FOR_CHECK
+        CHANGES_REQUIRED
+        RELEASED
+        DEADLINE_PASSED
+        TEST_TAKEN
+        EXAM_OFFICER_CHECK
+        EXAM_CHANGES_REQUIRED
+        EXTERNAL_FEEDBACK
+        SETTER_RESPONSE
+        FINAL_CHECK
+        SENT_TO_PRINTING
+        EXAM_TAKEN
+        MARKING
+        ADMIN_MARK_CHECK
+        MODERATED
+        FEEDBACK_RETURNED
+        RESULTS_RETURNED
+        PUBLISHED
+        APPROVED
+    }
+
+    ENUM AssessmentRole {
+        SETTER
+        CHECKER
+    }
+}
+
+package "DTOs" {
+    class UserDto {
+        + UUID id
+        + String name
+        + String email
+        + UserBaseType baseType
+        + boolean examsOfficer
+    }
+
+    class ModuleDto {
+        + UUID id
+        + String code
+        + String title
+        + String academicYear
+        + List<ModuleStaffDto> staff
+        + List<UserDto> externalExaminers
+        + int staffCount
+        + int assessmentCount
+    }
+
+    class AssessmentDto {
+        + UUID id
+        + UUID moduleId
+        + String title
+        + AssessmentType type
+        + AssessmentState state
+        + LocalDate deadline
+        + LocalDate testDate
+        + LocalDate examDate
+        + List<AssessmentRoleDto> roles
+    }
+
+    class CreateModuleRequest {
+        + String code
+        + String title
+        + String academicYear
+        + UUID moduleLeadId
+        + UUID moduleModeratorId
+        + List<UUID> staffIds
+    }
+
+    class CreateAssessmentRequest {
+        + UUID moduleId
+        + String title
+        + AssessmentType type
+    }
+}
+
+package "Services" {
+    SERVICE UserService {
+        + createUser(CreateUserRequest): User
+        + getAllUsers(): List<User>
+        + getUserById(UUID): User
+        + toggleExamsOfficer(UUID): User
+    }
+
+    SERVICE ModuleService {
+        + createModule(CreateModuleRequest): Module
+        + getAllModules(): List<ModuleDto>
+        + getModuleById(UUID): ModuleDto
+        + updateModule(UUID, CreateModuleRequest): Module
+        + deleteModule(UUID): void
+        + addExternalExaminer(UUID, UUID): void
+        + removeExternalExaminer(UUID, UUID): void
+        + searchModules(String, String, UUID): List<ModuleDto>
+    }
+
+    SERVICE AssessmentService {
+        + createAssessment(CreateAssessmentRequest): Assessment
+        + getAssessmentById(UUID): AssessmentDto
+        + getAssessmentsByModule(UUID): List<AssessmentDto>
+        + transitionAssessment(UUID, AssessmentState): Assessment
+        + assignRole(UUID, UUID, AssessmentRole): void
+        + setExternalFeedback(UUID, String): void
+        + setSetterResponse(UUID, String): void
+    }
+
+    SERVICE TransitionService {
+        + canProgress(User, Assessment, AssessmentState): boolean
+        + allowedTargets(User, Assessment): List<AssessmentState>
+        + canBeChecker(User, Assessment): boolean
+        + canSubmitExternalFeedback(User, Assessment): boolean
+        + canSubmitSetterResponse(User, Assessment): boolean
+    }
+
+    SERVICE CsvImportService {
+        + importModulesWithAssessments(MultipartFile, String): String
+    }
+}
+
+package "Controllers" {
+    CONTROLLER AuthController {
+        + login(LoginRequest): LoginResponse
+        + getCurrentUser(): UserDto
+        + logout(): void
+    }
+
+    CONTROLLER UserController {
+        + createUser(CreateUserRequest): UserDto
+        + getAllUsers(): List<UserDto>
+        + getUserById(UUID): UserDto
+        + toggleExamsOfficer(UUID): UserDto
+    }
+
+    CONTROLLER ModuleController {
+        + createModule(CreateModuleRequest): ModuleDto
+        + getModules(String, String): List<ModuleDto>
+        + getModuleById(UUID): ModuleDto
+        + updateModule(UUID, CreateModuleRequest): ModuleDto
+        + deleteModule(UUID): void
+        + addExternalExaminer(UUID, UUID): void
+        + removeExternalExaminer(UUID, UUID): void
+    }
+
+    CONTROLLER AssessmentController {
+        + createAssessment(CreateAssessmentRequest): AssessmentDto
+        + getAssessment(UUID): AssessmentDto
+        + getModuleAssessments(UUID): List<AssessmentDto>
+        + transitionState(UUID, TransitionRequest): AssessmentDto
+        + assignRole(UUID, AssignRoleRequest): void
+        + provideFeedback(UUID, FeedbackRequest): void
+    }
+
+    CONTROLLER CsvImportController {
+        + importModules(MultipartFile, String): ResponseEntity
+    }
+}
+
+package "Security" {
+    class CustomUserDetails {
+        - User user
+        --
+        + getUsername(): String
+        + getPassword(): String
+        + getAuthorities(): Collection
+        + isEnabled(): boolean
+    }
+
+    class CustomUserDetailsService {
+        + loadUserByUsername(String): UserDetails
+    }
+
+    class SecurityConfig {
+        + filterChain(HttpSecurity): SecurityFilterChain
+        + passwordEncoder(): PasswordEncoder
+        + authenticationManager(): AuthenticationManager
+    }
+}
+
+' Relationships
+
+' Entity Relationships
+User "1" -- "*" ModuleStaffRole : has roles in
+Module "1" -- "*" ModuleStaffRole : has staff
+Module "1" -- "*" Assessment : contains
+Module "1" -- "*" ModuleExternalExaminer : has examiners
+User "1" -- "*" ModuleExternalExaminer : examines
+Assessment "1" -- "*" AssessmentRoleAssignment : has roles
+User "1" -- "*" AssessmentRoleAssignment : assigned to
+Assessment "1" -- "*" StateTransition : has history
+User "1" -- "*" StateTransition : performed by
+
+' Enum Relationships
+User *-- UserBaseType
+ModuleStaffRole *-- ModuleRole
+Assessment *-- AssessmentType
+Assessment *-- AssessmentState
+AssessmentRoleAssignment *-- AssessmentRole
+
+' Service Dependencies
+UserService --> User : manages
+ModuleService --> Module : manages
+ModuleService --> ModuleStaffRole : manages
+ModuleService --> ModuleExternalExaminer : manages
+AssessmentService --> Assessment : manages
+AssessmentService --> AssessmentRoleAssignment : manages
+TransitionService --> Assessment : validates
+TransitionService --> AssessmentState : validates
+CsvImportService --> ModuleService : uses
+CsvImportService --> AssessmentService : uses
+
+' Controller Dependencies
+AuthController --> UserService : uses
+UserController --> UserService : uses
+ModuleController --> ModuleService : uses
+AssessmentController --> AssessmentService : uses
+AssessmentController --> TransitionService : uses
+CsvImportController --> CsvImportService : uses
+
+' Security Dependencies
+CustomUserDetailsService --> User : loads
+SecurityConfig --> CustomUserDetailsService : uses
+
+@enduml

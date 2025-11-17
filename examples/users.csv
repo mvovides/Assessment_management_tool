@@ -1,0 +1,6 @@
+name,email,baseType,isExamsOfficer
+Alice Johnson,alice.johnson@sheffield.ac.uk,ACADEMIC,false
+Bob Williams,bob.williams@sheffield.ac.uk,ACADEMIC,false
+Carol Brown,carol.brown@sheffield.ac.uk,TEACHING_SUPPORT,true
+David Miller,david.miller@sheffield.ac.uk,TEACHING_SUPPORT,false
+Eve Davis,eve.davis@example.com,EXTERNAL_EXAMINER,false

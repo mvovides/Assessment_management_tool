@@ -1,0 +1,121 @@
+@startuml Assessment Workflow State Machine
+
+!define STATE state
+!define CHOICE diamond
+
+skinparam backgroundColor #FFFFFF
+skinparam state {
+  BackgroundColor<<Coursework>> #E8F4F8
+  BackgroundColor<<Test>> #FFF4E6
+  BackgroundColor<<Exam>> #FFE6E6
+  BackgroundColor<<Common>> #E8F8E8
+  BackgroundColor<<Final>> #F0E8F8
+}
+
+title Assessment Management Tool - Workflow State Machine
+
+[*] --> DRAFT : Create Assessment
+
+STATE DRAFT <<Common>>
+STATE READY_FOR_CHECK <<Common>>
+STATE CHANGES_REQUIRED <<Common>>
+
+DRAFT --> READY_FOR_CHECK : Setter submits
+READY_FOR_CHECK --> CHANGES_REQUIRED : Checker rejects
+CHANGES_REQUIRED --> READY_FOR_CHECK : Setter resubmits
+
+' Coursework Path
+READY_FOR_CHECK --> RELEASED : Checker approves\n(Coursework)
+STATE RELEASED <<Coursework>>
+STATE DEADLINE_PASSED <<Coursework>>
+RELEASED --> DEADLINE_PASSED : Record deadline
+
+' Test Path
+READY_FOR_CHECK --> TEST_TAKEN : Checker approves\n(Test)
+STATE TEST_TAKEN <<Test>>
+
+' Exam Path
+READY_FOR_CHECK --> EXAM_OFFICER_CHECK : Checker approves\n(Exam)
+STATE EXAM_OFFICER_CHECK <<Exam>>
+STATE EXAM_CHANGES_REQUIRED <<Exam>>
+STATE EXTERNAL_FEEDBACK <<Exam>>
+STATE SETTER_RESPONSE <<Exam>>
+STATE FINAL_CHECK <<Exam>>
+STATE SENT_TO_PRINTING <<Exam>>
+STATE EXAM_TAKEN <<Exam>>
+
+EXAM_OFFICER_CHECK --> EXAM_CHANGES_REQUIRED : EO rejects
+EXAM_CHANGES_REQUIRED --> EXAM_OFFICER_CHECK : Setter resubmits
+EXAM_OFFICER_CHECK --> EXTERNAL_FEEDBACK : EO approves
+EXTERNAL_FEEDBACK --> SETTER_RESPONSE : External examiner\nprovides feedback
+SETTER_RESPONSE --> FINAL_CHECK : Setter responds
+FINAL_CHECK --> EXAM_CHANGES_REQUIRED : EO rejects
+FINAL_CHECK --> SENT_TO_PRINTING : EO final approval
+SENT_TO_PRINTING --> EXAM_TAKEN : Record exam date
+
+' Common post-completion
+STATE MARKING <<Common>>
+STATE ADMIN_MARK_CHECK <<Exam>>
+STATE MODERATED <<Common>>
+
+DEADLINE_PASSED --> MARKING : Begin marking\n(Coursework)
+TEST_TAKEN --> MARKING : Begin marking\n(Test)
+EXAM_TAKEN --> MARKING : Begin marking\n(Exam)
+
+MARKING --> ADMIN_MARK_CHECK : Complete marking\n(Exam only)
+ADMIN_MARK_CHECK --> MODERATED : Admin check complete
+MARKING --> MODERATED : Complete marking\n(CW/Test)
+
+' Final states
+STATE FEEDBACK_RETURNED <<Coursework>>
+STATE RESULTS_RETURNED <<Test>>
+STATE APPROVED <<Final>>
+STATE PUBLISHED <<Final>>
+
+MODERATED --> FEEDBACK_RETURNED : Return feedback\n(Coursework)
+MODERATED --> RESULTS_RETURNED : Return results\n(Test)
+MODERATED --> APPROVED : Approve\n(Exam)
+
+FEEDBACK_RETURNED --> APPROVED : Formal approval\n(Module Lead)
+RESULTS_RETURNED --> APPROVED : Formal approval\n(Module Lead)
+APPROVED --> PUBLISHED : Publish marks\n(Teaching Support)
+PUBLISHED --> [*]
+
+note right of DRAFT
+  **Roles:**
+  - Setter creates
+  - All can view
+end note
+
+note right of READY_FOR_CHECK
+  **Roles:**
+  - Checker reviews
+  - Can approve or reject
+  - Default: Module Moderator
+end note
+
+note right of EXAM_OFFICER_CHECK
+  **Roles:**
+  - Exams Officer only
+  - Additional check for exams
+  - Format and compliance
+end note
+
+note right of EXTERNAL_FEEDBACK
+  **Roles:**
+  - External Examiner
+  - Must be assigned to module
+  - Exam type only
+end note
+
+note bottom of APPROVED
+  **Approval Process:**
+  1. School Exam Board
+  2. Faculty Approval
+  3. Central Approval
+  
+  Module Lead submits
+  Teaching Support publishes
+end note
+
+@enduml

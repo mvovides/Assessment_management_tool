@@ -1,0 +1,133 @@
+@startuml Assessment Management Tool - Database Schema
+
+!define TABLE class
+!define PK <<PK>>
+!define FK <<FK>>
+!define UK <<UK>>
+
+' Styling
+skinparam backgroundColor #FFFFFF
+skinparam classBackgroundColor #E8F4F8
+skinparam classBorderColor #2C3E50
+
+TABLE app_user {
+    PK id : UUID
+    UK email : VARCHAR(255)
+    --
+    name : VARCHAR(255) NOT NULL
+    password : VARCHAR(255) NOT NULL
+    base_type : VARCHAR(50) NOT NULL
+    exams_officer : BOOLEAN DEFAULT FALSE
+    --
+    CHECK (base_type IN ('TEACHING_SUPPORT', 'ACADEMIC', 'EXTERNAL_EXAMINER'))
+}
+
+TABLE module {
+    PK id : UUID
+    UK code, academic_year
+    --
+    code : VARCHAR(20) NOT NULL
+    title : VARCHAR(255) NOT NULL
+    academic_year : VARCHAR(10) NOT NULL
+}
+
+TABLE assessment {
+    PK id : UUID
+    FK module_id : UUID NOT NULL
+    --
+    title : VARCHAR(255) NOT NULL
+    type : VARCHAR(50) NOT NULL
+    state : VARCHAR(50) NOT NULL
+    deadline : DATE
+    test_date : DATE
+    exam_date : DATE
+    external_feedback : TEXT
+    setter_response : TEXT
+    --
+    CHECK (type IN ('COURSEWORK', 'TEST', 'EXAM'))
+}
+
+TABLE module_staff_role {
+    PK id : UUID
+    FK module_id : UUID NOT NULL
+    FK user_id : UUID NOT NULL
+    UK module_id, user_id, role
+    --
+    role : VARCHAR(50) NOT NULL
+    --
+    CHECK (role IN ('MODULE_LEAD', 'STAFF', 'MODERATOR'))
+}
+
+TABLE assessment_role_assignment {
+    PK id : UUID
+    FK assessment_id : UUID NOT NULL
+    FK user_id : UUID NOT NULL
+    UK assessment_id, user_id, role
+    --
+    role : VARCHAR(50) NOT NULL
+    --
+    CHECK (role IN ('SETTER', 'CHECKER'))
+}
+
+TABLE module_external_examiner {
+    PK id : UUID
+    FK module_id : UUID NOT NULL
+    FK examiner_id : UUID NOT NULL
+    UK module_id, examiner_id
+}
+
+TABLE state_transition {
+    PK id : UUID
+    FK assessment_id : UUID NOT NULL
+    FK transitioned_by : UUID NOT NULL
+    --
+    from_state : VARCHAR(50)
+    to_state : VARCHAR(50) NOT NULL
+    transitioned_at : TIMESTAMP NOT NULL
+    comment : TEXT
+}
+
+' Relationships
+module "1" -- "*" assessment : contains
+module "1" -- "*" module_staff_role : has staff
+module "1" -- "*" module_external_examiner : has examiners
+
+app_user "1" -- "*" module_staff_role : has roles
+app_user "1" -- "*" assessment_role_assignment : assigned to
+app_user "1" -- "*" module_external_examiner : examines
+app_user "1" -- "*" state_transition : performs
+
+assessment "1" -- "*" assessment_role_assignment : has roles
+assessment "1" -- "*" state_transition : has history
+
+' Foreign Key Notes
+note right of assessment
+  Foreign Key: module_id → module(id)
+  ON DELETE CASCADE
+end note
+
+note right of module_staff_role
+  Foreign Key: module_id → module(id)
+  Foreign Key: user_id → app_user(id)
+  ON DELETE CASCADE
+end note
+
+note right of assessment_role_assignment
+  Foreign Key: assessment_id → assessment(id)
+  Foreign Key: user_id → app_user(id)
+  ON DELETE CASCADE
+end note
+
+note right of module_external_examiner
+  Foreign Key: module_id → module(id)
+  Foreign Key: examiner_id → app_user(id)
+  ON DELETE CASCADE
+end note
+
+note right of state_transition
+  Foreign Key: assessment_id → assessment(id)
+  Foreign Key: transitioned_by → app_user(id)
+  ON DELETE CASCADE
+end note
+
+@enduml

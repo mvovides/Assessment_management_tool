@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { authApi } from '../api/client';
 
 const AuthContext = createContext(null);
@@ -16,6 +17,7 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [viewMode, setViewMode] = useState('standard'); // 'standard' or 'admin'
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     checkAuth();
@@ -43,6 +45,8 @@ export const AuthProvider = ({ children }) => {
       const data = await authApi.login(credentials);
       // Backend returns { user: {...}, roles: [...] }
       setUser({ ...data.user, roles: data.roles });
+      // Clear all cached queries to ensure fresh data for new user
+      queryClient.clear();
       return { success: true };
     } catch (err) {
       const message = err.response?.data?.message || err.message || 'Login failed';
@@ -61,6 +65,8 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setUser(null);
       setViewMode('standard');
+      // Clear all cached queries on logout to prevent stale data
+      queryClient.clear();
     }
   };
 

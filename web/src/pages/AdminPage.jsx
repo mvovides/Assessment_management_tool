@@ -462,29 +462,38 @@ const AdminPage = () => {
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  CSV File Format
+                  CSV File Format (No Header Row)
                 </label>
                 <p className="text-sm text-gray-600 mb-2">
-                  Each row: <code className="bg-gray-100 px-1 rounded">moduleCode,moduleTitle,moduleLead,moduleModerator,staff,type1,title1,type2,title2,...</code>
+                  Format: <code className="bg-gray-100 px-1 rounded">moduleCode,moduleTitle,moduleLead,moderators,type1,title1,type2,title2,...</code>
                 </p>
                 <div className="p-3 bg-gray-50 rounded text-xs font-mono overflow-x-auto">
                   <strong>Example:</strong>
                   <pre className="mt-1 text-gray-700">
-COM1001,Introduction to Software Engineering,Phil McMinn,Kirill Bogdanov,"Tahsin Khan, Donghwan Shin",cw,Programming Assignment,cw,Requirements Specification,cw,Team Project{'\n'}
-COM1002,Foundations of Computer Science,Maksim Zhukovskii,,"Delvin Ce Zhang, Georgios Moulantzikos",exam,Autumn Exam,exam,Spring Exam,,{'\n'}
-COM107,Systems and Networks,Prosanta Gope,James Mapp,,cw,Lab Assessment,cw,Test,Exam,Final Exam
+COM1001,Introduction to Software Engineering,Phil McMinn,"Kirill Bogdanov, Tahsin Khan, Donghwan Shin",cw,Programming Assignment,cw,Requirements Specification{'\n'}
+COM4507,Software and Hardware Verification,Georg Struth,,exam,Final Exam{'\n'}
+COM107,Systems and Networks,Prosanta Gope,James Mapp,cw,Lab Assessment,cw,Test,exam,Final Exam
                   </pre>
                 </div>
                 <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs">
-                  <strong>Notes:</strong>
+                  <strong>Column Details:</strong>
                   <ul className="list-disc ml-4 mt-1 space-y-1">
-                    <li>Module code, title, lead, and moderator are required</li>
-                    <li>Staff are optional (leave empty if none)</li>
-                    <li>Moderator is automatically assigned as checker for all assessments</li>
-                    <li>Staff names should be comma-separated in quotes</li>
-                    <li>Assessments come in pairs: type (exam/cw/test) then title</li>
-                    <li>Empty assessment pairs at the end are ignored</li>
+                    <li><strong>Column A:</strong> Module code (required)</li>
+                    <li><strong>Column B:</strong> Module title (required)</li>
+                    <li><strong>Column C:</strong> Module lead (required) - assigned MODULE_LEAD role</li>
+                    <li><strong>Column D:</strong> Moderators (optional) - comma-separated list, can be blank. Assigned MODERATOR role</li>
+                    <li><strong>Column E onward:</strong> Assessment pairs - type,title,type,title,... (optional)</li>
                   </ul>
+                  <div className="mt-2 pt-2 border-t border-blue-300">
+                    <strong>Important Notes:</strong>
+                    <ul className="list-disc ml-4 mt-1 space-y-1">
+                      <li>Moderators are <strong>optional</strong> - leave column D blank to assign later</li>
+                      <li>Multiple moderators can be comma-separated (use quotes if needed)</li>
+                      <li>Assessment types: <code>exam</code>, <code>cw</code>, or <code>test</code> (test = coursework)</li>
+                      <li>Moderators automatically become checkers for all module assessments</li>
+                      <li>Empty assessment pairs at the end are ignored</li>
+                    </ul>
+                  </div>
                 </div>
               </div>
               

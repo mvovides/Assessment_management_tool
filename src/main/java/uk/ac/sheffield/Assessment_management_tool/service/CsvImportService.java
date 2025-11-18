@@ -61,9 +61,22 @@ public class CsvImportService {
     
     /**
      * Import modules with assessments from CSV file
-     * Expected format: moduleCode,moduleTitle,moduleLead,staff,assessmentType1,assessmentTitle1,assessmentType2,assessmentTitle2,...
-     * Example: COM1001,Introduction to Software Engineering,Phil McMinn,"Kirill Bogdanov, Tahsin Khan",cw,Programming Assignment,cw,Requirements Specification
-     * Note: Staff names are comma-separated in quotes. Assessment types and titles come in pairs.
+     * 
+     * CSV Format (no header row):
+     * Column A: Module code (required)
+     * Column B: Module title (required)
+     * Column C: Module lead name (required) - will be assigned MODULE_LEAD role
+     * Column D: Moderators (optional) - comma-separated list of names, can be blank. Will be assigned MODERATOR role
+     * Column E+: Assessment pairs - type,title,type,title,... (each pair is optional)
+     * 
+     * Example: COM1001,Introduction to Software Engineering,Phil McMinn,"Kirill Bogdanov, Tahsin Khan, Donghwan Shin",cw,Programming Assignment,cw,Requirements Specification
+     * Example with no moderator: COM4507,Software and Hardware Verification,Georg Struth,,exam,Final Exam
+     * 
+     * Assessment types: EXAM, CW, or TEST (TEST is treated as CW)
+     * 
+     * Note: Moderators are optional and can be left blank. This allows modules to be set up early 
+     * and moderators assigned later. If moderators are provided but not found in the system, 
+     * a warning will be logged but the import will continue.
      */
     public CsvImportJob importModulesWithAssessments(MultipartFile file, String academicYear) {
         CsvImportJob job = new CsvImportJob(file.getOriginalFilename());
@@ -94,8 +107,7 @@ public class CsvImportService {
                     String moduleCode = record.get(0);
                     String moduleTitle = record.get(1);
                     String moduleLead = record.size() > 2 ? record.get(2) : "";
-                    String moduleModerator = record.size() > 3 ? record.get(3) : "";
-                    String staff = record.size() > 4 ? record.get(4) : "";
+                    String moderatorsStr = record.size() > 3 ? record.get(3) : "";
                     
                     // Validate required fields
                     if (moduleCode == null || moduleCode.trim().isEmpty()) {
@@ -108,10 +120,6 @@ public class CsvImportService {
                     }
                     if (moduleLead == null || moduleLead.trim().isEmpty()) {
                         errors.add("Line " + lineNumber + ": Module lead is required");
-                        continue;
-                    }
-                    if (moduleModerator == null || moduleModerator.trim().isEmpty()) {
-                        errors.add("Line " + lineNumber + ": Module moderator is required");
                         continue;
                     }
                     
@@ -152,57 +160,43 @@ public class CsvImportService {
                         continue; // Skip this module if lead not found
                     }
                     
-                    // Assign module moderator (mandatory)
-                    Optional<User> moderatorUser = userRepository.findByName(moduleModerator.trim());
-                    if (moderatorUser.isPresent()) {
-                        // Don't add if same as module lead
-                        if (!moderatorUser.get().getId().equals(moduleLeadUser.get().getId())) {
-                            // Check if already assigned
-                            if (!moduleStaffRoleRepository.existsByModuleAndUserAndRole(
-                                    module, moderatorUser.get(), ModuleRole.MODERATOR)) {
-                                ModuleStaffRole moderatorRole = new ModuleStaffRole(
-                                    module, moderatorUser.get(), ModuleRole.MODERATOR);
-                                moduleStaffRoleRepository.save(moderatorRole);
-                            }
-                        }
-                    } else {
-                        errors.add("Line " + lineNumber + ": Module moderator '" + moduleModerator.trim() + "' not found");
-                        continue; // Skip this module if moderator not found
-                    }
-                    
-                    // Assign staff members if provided
-                    if (staff != null && !staff.trim().isEmpty()) {
-                        // Split staff names by comma (outside quotes)
-                        String[] staffNames = staff.split(",");
-                        for (String staffName : staffNames) {
-                            String trimmedName = staffName.trim();
+                    // Assign module moderators (optional, can be multiple comma-separated)
+                    if (moderatorsStr != null && !moderatorsStr.trim().isEmpty()) {
+                        // Split moderator names by comma
+                        String[] moderatorNames = moderatorsStr.split(",");
+                        boolean foundAnyModerator = false;
+                        
+                        for (String moderatorName : moderatorNames) {
+                            String trimmedName = moderatorName.trim();
                             if (!trimmedName.isEmpty()) {
-                                Optional<User> staffUser = userRepository.findByName(trimmedName);
-                                if (staffUser.isPresent()) {
-                                    // Don't add if already module lead or moderator
-                                    boolean isLead = moduleStaffRoleRepository.existsByModuleAndUserAndRole(
-                                            module, staffUser.get(), ModuleRole.MODULE_LEAD);
-                                    boolean isModerator = moduleStaffRoleRepository.existsByModuleAndUserAndRole(
-                                            module, staffUser.get(), ModuleRole.MODERATOR);
-                                    // Check if already assigned as staff
-                                    boolean isStaff = moduleStaffRoleRepository.existsByModuleAndUserAndRole(
-                                            module, staffUser.get(), ModuleRole.STAFF);
-                                    
-                                    if (!isLead && !isModerator && !isStaff) {
-                                        ModuleStaffRole staffRole = new ModuleStaffRole(
-                                            module, staffUser.get(), ModuleRole.STAFF);
-                                        moduleStaffRoleRepository.save(staffRole);
+                                Optional<User> moderatorUser = userRepository.findByName(trimmedName);
+                                if (moderatorUser.isPresent()) {
+                                    foundAnyModerator = true;
+                                    // Don't add if same as module lead
+                                    if (!moderatorUser.get().getId().equals(moduleLeadUser.get().getId())) {
+                                        // Check if already assigned
+                                        if (!moduleStaffRoleRepository.existsByModuleAndUserAndRole(
+                                                module, moderatorUser.get(), ModuleRole.MODERATOR)) {
+                                            ModuleStaffRole moderatorRole = new ModuleStaffRole(
+                                                module, moderatorUser.get(), ModuleRole.MODERATOR);
+                                            moduleStaffRoleRepository.save(moderatorRole);
+                                        }
                                     }
                                 } else {
-                                    errors.add("Line " + lineNumber + ": Staff member '" + trimmedName + "' not found");
+                                    errors.add("Line " + lineNumber + ": Moderator '" + trimmedName + "' not found");
                                 }
                             }
                         }
+                        
+                        // Only warn if none of the moderators were found
+                        if (!foundAnyModerator && moderatorNames.length > 0) {
+                            errors.add("Line " + lineNumber + ": None of the specified moderators were found");
+                        }
                     }
                     
-                    // Parse assessments (starting from column 5, pairs of type and title)
+                    // Parse assessments (starting from column 4, pairs of type and title)
                     int assessmentsInLine = 0;
-                    for (int i = 5; i < record.size() - 1; i += 2) {
+                    for (int i = 4; i < record.size() - 1; i += 2) {
                         String typeStr = record.get(i);
                         String assessmentTitle = record.get(i + 1);
                         
@@ -222,13 +216,18 @@ public class CsvImportService {
                             continue;
                         }
                         
-                        // Parse assessment type
+                        // Parse assessment type (support TEST as alias for CW)
                         AssessmentType type;
+                        String normalizedType = typeStr.trim().toUpperCase();
+                        if ("TEST".equals(normalizedType)) {
+                            normalizedType = "CW"; // TEST is treated as coursework
+                        }
+                        
                         try {
-                            type = AssessmentType.valueOf(typeStr.trim().toUpperCase());
+                            type = AssessmentType.valueOf(normalizedType);
                         } catch (IllegalArgumentException e) {
                             errors.add("Line " + lineNumber + ", Assessment " + (assessmentsInLine + 1) + 
-                                    ": Invalid type '" + typeStr + "'. Must be EXAM or CW");
+                                    ": Invalid type '" + typeStr + "'. Must be EXAM, CW, or TEST");
                             continue;
                         }
                         

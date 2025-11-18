@@ -23,7 +23,6 @@ const AdminPage = () => {
   const [newModule, setNewModule] = useState({
     code: '',
     title: '',
-    academicYear: '',
     moduleLeadId: '',
     moduleModeratorId: '',
     staffIds: [],
@@ -74,7 +73,7 @@ const AdminPage = () => {
       queryClient.invalidateQueries(['modules']);
       setShowModuleModal(false);
       setEditingModule(null);
-      setNewModule({ code: '', title: '', academicYear: '', moduleLeadId: '', moduleModeratorId: '', staffIds: [] });
+      setNewModule({ code: '', title: '', moduleLeadId: '', moduleModeratorId: '', staffIds: [] });
     },
   });
 
@@ -84,7 +83,7 @@ const AdminPage = () => {
       queryClient.invalidateQueries(['modules']);
       setShowModuleModal(false);
       setEditingModule(null);
-      setNewModule({ code: '', title: '', academicYear: '', moduleLeadId: '', moduleModeratorId: '', staffIds: [] });
+      setNewModule({ code: '', title: '', moduleLeadId: '', moduleModeratorId: '', staffIds: [] });
     },
   });
 
@@ -127,7 +126,7 @@ const AdminPage = () => {
     const moduleData = {
       code: newModule.code,
       title: newModule.title,
-      academicYear: newModule.academicYear,
+      academicYear: newModule.academicYear || '2024/25', // Use existing or default to current year
       moduleLeadId: newModule.moduleLeadId || null,
       moduleModeratorId: newModule.moduleModeratorId || null,
       staffIds: newModule.staffIds,
@@ -145,10 +144,10 @@ const AdminPage = () => {
     setNewModule({
       code: module.code,
       title: module.title,
-      academicYear: module.academicYear,
       moduleLeadId: module.staff?.find(s => s.role === 'MODULE_LEAD')?.userId || '',
       moduleModeratorId: module.staff?.find(s => s.role === 'MODERATOR')?.userId || '',
       staffIds: module.staff?.filter(s => s.role === 'STAFF').map(s => s.userId) || [],
+      academicYear: module.academicYear, // Keep for backend update
     });
     setShowModuleModal(true);
   };
@@ -188,7 +187,7 @@ const AdminPage = () => {
   const handleCloseModuleModal = () => {
     setShowModuleModal(false);
     setEditingModule(null);
-    setNewModule({ code: '', title: '', academicYear: '', moduleLeadId: '', moduleModeratorId: '', staffIds: [] });
+    setNewModule({ code: '', title: '', moduleLeadId: '', moduleModeratorId: '', staffIds: [] });
   };
 
   const handleStaffSelection = (e) => {
@@ -603,13 +602,7 @@ COM107,Systems and Networks,Prosanta Gope,James Mapp,cw,Lab Assessment,cw,Test,e
             required
             placeholder="e.g. Software Engineering"
           />
-          <Input
-            label="Academic Year"
-            value={newModule.academicYear}
-            onChange={(e) => setNewModule({ ...newModule, academicYear: e.target.value })}
-            required
-            placeholder="e.g. 2024/25"
-          />
+
           
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">

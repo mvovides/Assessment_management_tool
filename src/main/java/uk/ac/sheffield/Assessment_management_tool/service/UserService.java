@@ -33,42 +33,31 @@ public class UserService {
     }
     
     public CreateUserResponse createUser(CreateUserRequest request) {
-        // Check if email already exists
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new IllegalArgumentException("Email already exists: " + request.getEmail());
+            throw new IllegalArgumentException("Email already exists");
         }
         
-        // Validate Exams Officer can only be Academic
         if (request.isExamsOfficer() && request.getBaseType() != UserBaseType.ACADEMIC) {
             throw new IllegalArgumentException("Only academics can be exams officers");
         }
         
-        // Generate temporary password
         String tempPassword = generateTemporaryPassword();
-        
-        // Create user
-        User user = new User();
-        user.setName(request.getName());
-        user.setEmail(request.getEmail());
-        user.setPasswordHash(passwordEncoder.encode(tempPassword));
-        user.setBaseType(request.getBaseType());
+        User user = new User(request.getName(), request.getEmail(), 
+                passwordEncoder.encode(tempPassword), request.getBaseType());
         user.setExamsOfficer(request.isExamsOfficer());
-        
         user = userRepository.save(user);
         
         return new CreateUserResponse(EntityMapper.toUserDto(user), tempPassword);
     }
     
     public UserDto getUserById(UUID id) {
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("User not found: " + id));
-        return EntityMapper.toUserDto(user);
+        return EntityMapper.toUserDto(userRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("User not found")));
     }
     
     public UserDto getUserByEmail(String email) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new IllegalArgumentException("User not found: " + email));
-        return EntityMapper.toUserDto(user);
+        return EntityMapper.toUserDto(userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("User not found")));
     }
     
     public List<UserDto> getAllUsers() {
@@ -78,69 +67,61 @@ public class UserService {
     }
     
     public UserDto toggleUserActive(UUID id) {
-        // Active field has been removed - this method is now a no-op but kept for backwards compatibility
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("User not found: " + id));
-        
-        return EntityMapper.toUserDto(user);
+        return EntityMapper.toUserDto(userRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("User not found")));
     }
     
     public UserDto toggleExamsOfficer(UUID id, UUID currentUserId) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("User not found: " + id));
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
         
         if (user.getBaseType() != UserBaseType.ACADEMIC) {
             throw new IllegalArgumentException("Only academics can be exams officers");
         }
         
-        // If trying to remove EO status, check if this is the last academic EO
         if (user.isExamsOfficer()) {
-            long academicEOCount = userRepository.findAll().stream()
-                    .filter(u -> u.getBaseType() == UserBaseType.ACADEMIC && u.isExamsOfficer())
-                    .count();
-            
-            if (academicEOCount <= 1) {
-                throw new IllegalArgumentException("Cannot remove Exams Officer status. There must be at least one Academic Exams Officer.");
-            }
-            
-            // Check if user is trying to demote themselves
-            if (id.equals(currentUserId)) {
-                throw new IllegalArgumentException("You cannot remove your own Exams Officer status. Ask another Exams Officer to do this.");
-            }
+            validateCanRemoveExamsOfficer(id, currentUserId);
         }
         
         user.setExamsOfficer(!user.isExamsOfficer());
-        user = userRepository.save(user);
-        
-        return EntityMapper.toUserDto(user);
+        return EntityMapper.toUserDto(userRepository.save(user));
     }
     
     public void changePassword(UUID userId, String newPassword) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
-        
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
         user.setPasswordHash(passwordEncoder.encode(newPassword));
         userRepository.save(user);
     }
     
+    private void validateCanRemoveExamsOfficer(UUID id, UUID currentUserId) {
+        long eoCount = userRepository.findAll().stream()
+                .filter(u -> u.getBaseType() == UserBaseType.ACADEMIC && u.isExamsOfficer())
+                .count();
+        
+        if (eoCount <= 1) {
+            throw new IllegalArgumentException("Must have at least one Exams Officer");
+        }
+        
+        if (id.equals(currentUserId)) {
+            throw new IllegalArgumentException("Cannot remove your own Exams Officer status");
+        }
+    }
+    
     private String generateTemporaryPassword() {
         SecureRandom random = new SecureRandom();
-        StringBuilder password = new StringBuilder(12);
-        
         String allChars = CHAR_LOWER + CHAR_UPPER + CHAR_DIGITS + CHAR_SPECIAL;
+        StringBuilder password = new StringBuilder();
         
-        // Ensure at least one of each type
         password.append(CHAR_LOWER.charAt(random.nextInt(CHAR_LOWER.length())));
         password.append(CHAR_UPPER.charAt(random.nextInt(CHAR_UPPER.length())));
         password.append(CHAR_DIGITS.charAt(random.nextInt(CHAR_DIGITS.length())));
         password.append(CHAR_SPECIAL.charAt(random.nextInt(CHAR_SPECIAL.length())));
         
-        // Fill the rest randomly
         for (int i = 4; i < 12; i++) {
             password.append(allChars.charAt(random.nextInt(allChars.length())));
         }
         
-        // Shuffle
         char[] chars = password.toString().toCharArray();
         for (int i = chars.length - 1; i > 0; i--) {
             int j = random.nextInt(i + 1);

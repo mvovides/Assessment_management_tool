@@ -19,8 +19,8 @@ import uk.ac.sheffield.Assessment_management_tool.dto.response.UserProfileDto;
 import uk.ac.sheffield.Assessment_management_tool.mapper.EntityMapper;
 import uk.ac.sheffield.Assessment_management_tool.security.CustomUserDetails;
 
-import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -36,40 +36,31 @@ public class AuthController {
     
     @GetMapping("/csrf")
     public ResponseEntity<Void> getCsrfToken() {
-        // This endpoint just triggers CSRF token generation
-        // The token is automatically added to the response cookie by Spring Security
         return ResponseEntity.ok().build();
     }
     
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest) {
         try {
-            // Authenticate
-            Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
-            );
+            Authentication auth = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
             
-            // Set security context
-            SecurityContext securityContext = SecurityContextHolder.getContext();
-            securityContext.setAuthentication(authentication);
+            SecurityContext context = SecurityContextHolder.getContext();
+            context.setAuthentication(auth);
             
-            // Create new session
             HttpSession session = httpRequest.getSession(true);
-            session.setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY, securityContext);
+            session.setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY, context);
             
-            // Get user details
-            CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+            CustomUserDetails userDetails = (CustomUserDetails) auth.getPrincipal();
             UserDto userDto = EntityMapper.toUserDto(userDetails.getUser());
-            
-            List<String> roles = authentication.getAuthorities().stream()
+            List<String> roles = auth.getAuthorities().stream()
                     .map(GrantedAuthority::getAuthority)
                     .collect(Collectors.toList());
             
             return ResponseEntity.ok(new UserProfileDto(userDto, roles));
         } catch (Exception e) {
-            Map<String, String> error = new HashMap<>();
-            error.put("message", "Invalid email or password");
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("message", "Invalid email or password"));
         }
     }
     
@@ -85,17 +76,15 @@ public class AuthController {
     
     @GetMapping("/me")
     public ResponseEntity<UserProfileDto> getCurrentUser() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         
-        if (authentication == null || !authentication.isAuthenticated() || 
-            authentication.getPrincipal().equals("anonymousUser")) {
+        if (auth == null || !auth.isAuthenticated() || auth.getPrincipal().equals("anonymousUser")) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
         
-        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+        CustomUserDetails userDetails = (CustomUserDetails) auth.getPrincipal();
         UserDto userDto = EntityMapper.toUserDto(userDetails.getUser());
-        
-        List<String> roles = authentication.getAuthorities().stream()
+        List<String> roles = auth.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .collect(Collectors.toList());
         

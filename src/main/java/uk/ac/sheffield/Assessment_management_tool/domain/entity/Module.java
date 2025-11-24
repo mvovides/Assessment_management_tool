@@ -24,7 +24,6 @@ public class Module {
     @Column(nullable = false)
     private String title;
     
-    // Constructors
     public Module() {}
     
     public Module(String code, String title) {
@@ -32,7 +31,6 @@ public class Module {
         this.title = title;
     }
     
-    // Getters and Setters
     public UUID getId() {
         return id;
     }

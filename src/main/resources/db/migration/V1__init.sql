@@ -17,14 +17,11 @@ CREATE INDEX idx_user_base_type ON app_user(base_type);
 -- Modules table
 CREATE TABLE module (
     id UUID PRIMARY KEY,
-    code VARCHAR(50) NOT NULL,
-    title VARCHAR(500) NOT NULL,
-    academic_year VARCHAR(20) NOT NULL,
-    UNIQUE (code, academic_year)
+    code VARCHAR(50) NOT NULL UNIQUE,
+    title VARCHAR(500) NOT NULL
 );
 
 CREATE INDEX idx_module_code ON module(code);
-CREATE INDEX idx_module_year ON module(academic_year);
 
 -- Module staff roles (association table)
 CREATE TABLE module_staff_role (

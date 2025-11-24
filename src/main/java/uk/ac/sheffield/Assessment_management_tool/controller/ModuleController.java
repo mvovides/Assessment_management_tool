@@ -1,8 +1,6 @@
 package uk.ac.sheffield.Assessment_management_tool.controller;
 
 import jakarta.validation.Valid;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -21,8 +19,6 @@ import java.util.UUID;
 @RequestMapping("/api")
 public class ModuleController {
     
-    private static final Logger logger = LoggerFactory.getLogger(ModuleController.class);
-    
     private final ModuleService moduleService;
     
     public ModuleController(ModuleService moduleService) {
@@ -34,24 +30,11 @@ public class ModuleController {
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String year) {
         
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         UUID currentUserId = null;
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         
-        logger.info("getModules called - Authentication: {}", authentication != null ? authentication.getName() : "null");
-        
-        if (authentication != null && authentication.isAuthenticated()) {
-            Object principal = authentication.getPrincipal();
-            
-            logger.info("Principal type: {}", principal.getClass().getName());
-            
-            // Check if principal is CustomUserDetails (not anonymousUser string)
-            if (principal instanceof CustomUserDetails) {
-                CustomUserDetails userDetails = (CustomUserDetails) principal;
-                currentUserId = userDetails.getUser().getId();
-                logger.info("Extracted userId: {} for user: {}", currentUserId, userDetails.getUser().getEmail());
-            } else {
-                logger.warn("Principal is not CustomUserDetails: {}", principal);
-            }
+        if (auth != null && auth.isAuthenticated() && auth.getPrincipal() instanceof CustomUserDetails) {
+            currentUserId = ((CustomUserDetails) auth.getPrincipal()).getUser().getId();
         }
         
         return ResponseEntity.ok(moduleService.searchModules(search, year, currentUserId));

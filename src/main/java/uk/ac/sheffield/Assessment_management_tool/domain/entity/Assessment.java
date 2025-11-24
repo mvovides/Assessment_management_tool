@@ -51,7 +51,6 @@ public class Assessment {
     @Version
     private Long version;
     
-    // Constructors
     public Assessment() {
         this.currentState = AssessmentState.DRAFT;
     }
@@ -63,7 +62,6 @@ public class Assessment {
         this.currentState = AssessmentState.DRAFT;
     }
     
-    // Getters and Setters
     public UUID getId() {
         return id;
     }

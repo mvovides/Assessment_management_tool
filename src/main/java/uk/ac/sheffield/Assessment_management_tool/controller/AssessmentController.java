@@ -79,68 +79,38 @@ public class AssessmentController {
         return ResponseEntity.ok(assessment);
     }
     
-    /**
-     * Assign a role (SETTER or CHECKER) to a user for an assessment
-     * POST /api/assessments/{assessmentId}/roles
-     * Body: { "userId": "uuid", "role": "SETTER" or "CHECKER" }
-     */
     @PostMapping("/assessments/{assessmentId}/roles")
     @PreAuthorize("hasRole('ADMIN') or hasRole('MODULE_LEAD')")
-    public ResponseEntity<String> assignRole(
-            @PathVariable UUID assessmentId,
+    public ResponseEntity<String> assignRole(@PathVariable UUID assessmentId,
             @Valid @RequestBody uk.ac.sheffield.Assessment_management_tool.dto.request.AssignRoleRequest request) {
-        
         assessmentService.assignRole(assessmentId, request.getUserId(), request.getRole());
         return ResponseEntity.ok("Role assigned successfully");
     }
     
-    /**
-     * Remove a role assignment from an assessment
-     * DELETE /api/assessments/{assessmentId}/roles/{userId}/{role}
-     */
     @DeleteMapping("/assessments/{assessmentId}/roles/{userId}/{role}")
     @PreAuthorize("hasRole('ADMIN') or hasRole('MODULE_LEAD')")
-    public ResponseEntity<String> removeRole(
-            @PathVariable UUID assessmentId,
-            @PathVariable UUID userId,
+    public ResponseEntity<String> removeRole(@PathVariable UUID assessmentId, @PathVariable UUID userId,
             @PathVariable uk.ac.sheffield.Assessment_management_tool.domain.enums.AssessmentRole role) {
-        
         assessmentService.removeRole(assessmentId, userId, role);
         return ResponseEntity.ok("Role removed successfully");
     }
     
-    /**
-     * Get all users assigned to an assessment with their roles
-     * GET /api/assessments/{assessmentId}/roles
-     */
     @GetMapping("/assessments/{assessmentId}/roles")
-    public ResponseEntity<List<uk.ac.sheffield.Assessment_management_tool.dto.response.AssessmentRoleDto>> getAssessmentRoles(@PathVariable UUID assessmentId) {
-        var roles = assessmentService.getAssessmentRoles(assessmentId);
-        List<uk.ac.sheffield.Assessment_management_tool.dto.response.AssessmentRoleDto> result = roles.stream()
+    public ResponseEntity<List<uk.ac.sheffield.Assessment_management_tool.dto.response.AssessmentRoleDto>> getAssessmentRoles(
+            @PathVariable UUID assessmentId) {
+        List<uk.ac.sheffield.Assessment_management_tool.dto.response.AssessmentRoleDto> result = 
+                assessmentService.getAssessmentRoles(assessmentId).stream()
                 .map(r -> new uk.ac.sheffield.Assessment_management_tool.dto.response.AssessmentRoleDto(
-                    r.getUser().getId(),
-                    r.getUser().getName(),
-                    r.getUser().getEmail(),
-                    r.getUser().getBaseType().name(),
-                    r.getRole()
-                ))
+                    r.getUser().getId(), r.getUser().getName(), r.getUser().getEmail(),
+                    r.getUser().getBaseType().name(), r.getRole()))
                 .toList();
         return ResponseEntity.ok(result);
     }
     
-    /**
-     * Submit assessment content (setter uploads assessment details)
-     * POST /api/assessments/{assessmentId}/submit-content
-     * Body: { "description": "...", "fileName": "...", "fileUrl": "..." }
-     */
     @PostMapping("/assessments/{assessmentId}/submit-content")
-    public ResponseEntity<AssessmentDto> submitAssessmentContent(
-            @PathVariable UUID assessmentId,
+    public ResponseEntity<AssessmentDto> submitAssessmentContent(@PathVariable UUID assessmentId,
             @Valid @RequestBody uk.ac.sheffield.Assessment_management_tool.dto.request.SubmitAssessmentRequest request) {
-        
-        UUID userId = getCurrentUserId();
-        AssessmentDto assessment = assessmentService.submitAssessmentContent(assessmentId, userId, request);
-        return ResponseEntity.ok(assessment);
+        return ResponseEntity.ok(assessmentService.submitAssessmentContent(assessmentId, getCurrentUserId(), request));
     }
     
     private UUID getCurrentUserId() {

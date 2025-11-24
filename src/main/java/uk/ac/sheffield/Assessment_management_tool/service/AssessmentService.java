@@ -59,67 +59,35 @@ public class AssessmentService {
     
     public AssessmentDto createAssessment(UUID moduleId, CreateAssessmentRequest request) {
         Module module = moduleRepository.findById(moduleId)
-                .orElseThrow(() -> new IllegalArgumentException("Module not found: " + moduleId));
+                .orElseThrow(() -> new IllegalArgumentException("Module not found"));
         
-        // Validate exam date for exam type
         if (request.getType() == AssessmentType.EXAM && request.getExamDate() == null) {
-            throw new IllegalArgumentException("Exam date is required for exam assessments");
+            throw new IllegalArgumentException("Exam date required for exams");
         }
         
-        Assessment assessment = new Assessment();
-        assessment.setModule(module);
-        assessment.setTitle(request.getTitle());
-        assessment.setType(request.getType());
+        Assessment assessment = new Assessment(module, request.getTitle(), request.getType());
         assessment.setExamDate(request.getExamDate());
-        // currentState is set to DRAFT in constructor
-        
         assessment = assessmentRepository.save(assessment);
         
-        // Automatically assign module moderator as checker (if module has a moderator)
-        List<ModuleStaffRole> moderators = moduleStaffRoleRepository.findByModuleAndRole(module, ModuleRole.MODERATOR);
-        if (!moderators.isEmpty()) {
-            User moderator = moderators.get(0).getUser(); // Take the first moderator
-            AssessmentRoleAssignment checkerRole = new AssessmentRoleAssignment(assessment, moderator, uk.ac.sheffield.Assessment_management_tool.domain.enums.AssessmentRole.CHECKER);
-            assessmentRoleRepository.save(checkerRole);
-        }
-        
+        autoAssignModerator(assessment, module);
         return EntityMapper.toAssessmentDto(assessment);
     }
     
     public AssessmentDto getAssessmentById(UUID id) {
-        Assessment assessment = assessmentRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Assessment not found: " + id));
-        return EntityMapper.toAssessmentDto(assessment);
+        return EntityMapper.toAssessmentDto(assessmentRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Assessment not found")));
     }
     
     public AssessmentDto getAssessmentByIdWithUserContext(UUID id, UUID userId) {
         Assessment assessment = assessmentRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Assessment not found: " + id));
+                .orElseThrow(() -> new IllegalArgumentException("Assessment not found"));
         
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
         
         AssessmentDto dto = EntityMapper.toAssessmentDto(assessment);
-        
-        // Get user's roles on this assessment
-        List<AssessmentRoleAssignment> userRoles = assessmentRoleRepository.findByAssessmentAndUser(assessment, user);
-        List<String> roles = userRoles.stream()
-                .map(r -> r.getRole().name())
-                .collect(Collectors.toList());
-        
-        // Add ADMIN role if user is teaching support AND doesn't have explicit assessment roles
-        // This ensures checkers/setters who are also admins show their actual assignment role
-        if (user.getBaseType() == uk.ac.sheffield.Assessment_management_tool.domain.enums.UserBaseType.TEACHING_SUPPORT) {
-            if (roles.isEmpty()) {
-                roles.add("ADMIN");
-            }
-        }
-        
-        dto.setRoles(roles);
-        
-        // Get allowed target states for this user
-        List<AssessmentState> allowedTargets = transitionService.allowedTargets(user, assessment);
-        dto.setAllowedTargets(allowedTargets);
+        dto.setRoles(getUserRolesForAssessment(assessment, user));
+        dto.setAllowedTargets(transitionService.allowedTargets(user, assessment));
         
         return dto;
     }
@@ -138,104 +106,46 @@ public class AssessmentService {
      */
     public List<AssessmentDto> getAllAssessmentsForUser(UUID userId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
         
-        // If admin, return all assessments
         if (user.getBaseType() == uk.ac.sheffield.Assessment_management_tool.domain.enums.UserBaseType.TEACHING_SUPPORT) {
             return assessmentRepository.findAll().stream()
                     .map(EntityMapper::toAssessmentDto)
                     .collect(Collectors.toList());
         }
         
-        // Get modules where user is staff
-        List<ModuleStaffRole> staffRoles = moduleStaffRoleRepository.findByUserId(userId);
-        List<UUID> userModuleIds = staffRoles.stream()
-                .map(role -> role.getModule().getId())
-                .collect(Collectors.toList());
-        
-        // Get assessments from user's modules
-        List<Assessment> moduleAssessments = userModuleIds.stream()
-                .flatMap(moduleId -> assessmentRepository.findByModuleId(moduleId).stream())
-                .collect(Collectors.toList());
-        
-        // Get assessments where user has a role assignment (SETTER or CHECKER)
-        List<AssessmentRoleAssignment> roleAssignments = assessmentRoleRepository.findByUserId(userId);
-        List<Assessment> roleAssessments = roleAssignments.stream()
-                .map(AssessmentRoleAssignment::getAssessment)
-                .collect(Collectors.toList());
-        
-        // Combine and deduplicate
-        List<Assessment> allAssessments = new java.util.ArrayList<>(moduleAssessments);
-        for (Assessment assessment : roleAssessments) {
-            if (!allAssessments.contains(assessment)) {
-                allAssessments.add(assessment);
-            }
-        }
-        
-        return allAssessments.stream()
+        List<Assessment> assessments = getAssessmentsForNonAdmin(userId);
+        return assessments.stream()
                 .map(EntityMapper::toAssessmentDto)
                 .collect(Collectors.toList());
     }
     
     public AssessmentDto progressAssessment(UUID assessmentId, UUID userId, TransitionRequest request) {
         Assessment assessment = assessmentRepository.findById(assessmentId)
-                .orElseThrow(() -> new IllegalArgumentException("Assessment not found: " + assessmentId));
+                .orElseThrow(() -> new IllegalArgumentException("Assessment not found"));
         
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
         
-        // Check permission
         if (!transitionService.canProgress(user, assessment, request.getTargetState())) {
-            throw new IllegalStateException("User not permitted to make this transition");
+            throw new IllegalStateException("Not permitted to make this transition");
         }
         
-        // Create transition record
-        AssessmentState fromState = assessment.getCurrentState();
-        AssessmentTransition transition = new AssessmentTransition();
-        transition.setAssessment(assessment);
-        transition.setFromState(fromState);
-        transition.setToState(request.getTargetState());
-        transition.setByUser(user);
-        transition.setByDisplayName(user.getName());
-        transition.setNote(request.getNote());
-        transition.setOverride(false);
-        transition.setReversion(false);
-        
-        transitionRepository.save(transition);
-        
-        // Update assessment state
+        createTransition(assessment, user, request, false);
         assessment.setCurrentState(request.getTargetState());
-        assessment = assessmentRepository.save(assessment);
-        
-        return EntityMapper.toAssessmentDto(assessment);
+        return EntityMapper.toAssessmentDto(assessmentRepository.save(assessment));
     }
     
     public AssessmentDto overrideTransition(UUID assessmentId, UUID userId, TransitionRequest request) {
         Assessment assessment = assessmentRepository.findById(assessmentId)
-                .orElseThrow(() -> new IllegalArgumentException("Assessment not found: " + assessmentId));
+                .orElseThrow(() -> new IllegalArgumentException("Assessment not found"));
         
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
         
-        // Create override transition
-        AssessmentState fromState = assessment.getCurrentState();
-        AssessmentTransition transition = new AssessmentTransition();
-        transition.setAssessment(assessment);
-        transition.setFromState(fromState);
-        transition.setToState(request.getTargetState());
-        transition.setByUser(user);
-        transition.setByDisplayName(user.getName());
-        transition.setNote(request.getNote());
-        transition.setOverride(true);
-        transition.setReversion(false);
-        
-        transitionRepository.save(transition);
-        
-        // Update assessment state
+        createTransition(assessment, user, request, true);
         assessment.setCurrentState(request.getTargetState());
-        assessment = assessmentRepository.save(assessment);
-        
-        return EntityMapper.toAssessmentDto(assessment);
+        return EntityMapper.toAssessmentDto(assessmentRepository.save(assessment));
     }
     
     public List<TransitionDto> getAssessmentTransitions(UUID assessmentId) {
@@ -254,39 +164,24 @@ public class AssessmentService {
      * Assign a role (SETTER or CHECKER) to a user for an assessment
      */
     public void assignRole(UUID assessmentId, UUID userId, uk.ac.sheffield.Assessment_management_tool.domain.enums.AssessmentRole role) {
-        System.out.println("DEBUG: Assigning role " + role + " to user " + userId + " on assessment " + assessmentId);
-        
         Assessment assessment = assessmentRepository.findById(assessmentId)
-                .orElseThrow(() -> new IllegalArgumentException("Assessment not found: " + assessmentId));
+                .orElseThrow(() -> new IllegalArgumentException("Assessment not found"));
         
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
         
-        // Additional validation for CHECKER role
         if (role == uk.ac.sheffield.Assessment_management_tool.domain.enums.AssessmentRole.CHECKER) {
             if (!transitionService.canBeChecker(user, assessment)) {
-                throw new IllegalArgumentException(
-                    "User cannot be checker. Checker must be independent " +
-                    "(not module lead, not module staff, not setter on this assessment)."
-                );
+                throw new IllegalArgumentException("User cannot be checker - not independent");
             }
         }
         
-        // Check if role already exists
-        List<AssessmentRoleAssignment> existingRoles = assessmentRoleRepository
-                .findByAssessmentAndUser(assessment, user);
-        
-        boolean roleExists = existingRoles.stream()
-                .anyMatch(r -> r.getRole() == role);
-        
-        if (roleExists) {
-            throw new IllegalArgumentException("User already has this role on this assessment");
+        if (assessmentRoleRepository.findByAssessmentAndUser(assessment, user).stream()
+                .anyMatch(r -> r.getRole() == role)) {
+            throw new IllegalArgumentException("User already has this role");
         }
         
-        // Create and save new role assignment
-        AssessmentRoleAssignment roleAssignment = new AssessmentRoleAssignment(assessment, user, role);
-        assessmentRoleRepository.save(roleAssignment);
-        System.out.println("DEBUG: Successfully assigned role " + role + " to user " + user.getName() + " (" + user.getEmail() + ")");
+        assessmentRoleRepository.save(new AssessmentRoleAssignment(assessment, user, role));
     }
     
     /**
@@ -294,18 +189,15 @@ public class AssessmentService {
      */
     public void removeRole(UUID assessmentId, UUID userId, uk.ac.sheffield.Assessment_management_tool.domain.enums.AssessmentRole role) {
         Assessment assessment = assessmentRepository.findById(assessmentId)
-                .orElseThrow(() -> new IllegalArgumentException("Assessment not found: " + assessmentId));
+                .orElseThrow(() -> new IllegalArgumentException("Assessment not found"));
         
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
         
-        // Find the role assignment
-        List<AssessmentRoleAssignment> roles = assessmentRoleRepository.findByAssessmentAndUser(assessment, user);
-        
-        AssessmentRoleAssignment roleToRemove = roles.stream()
+        AssessmentRoleAssignment roleToRemove = assessmentRoleRepository.findByAssessmentAndUser(assessment, user).stream()
                 .filter(r -> r.getRole() == role)
                 .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("Role assignment not found"));
+                .orElseThrow(() -> new IllegalArgumentException("Role not found"));
         
         assessmentRoleRepository.delete(roleToRemove);
     }
@@ -314,10 +206,8 @@ public class AssessmentService {
      * Get all users assigned to an assessment with their roles
      */
     public List<AssessmentRoleAssignment> getAssessmentRoles(UUID assessmentId) {
-        Assessment assessment = assessmentRepository.findById(assessmentId)
-                .orElseThrow(() -> new IllegalArgumentException("Assessment not found: " + assessmentId));
-        
-        return assessmentRoleRepository.findByAssessment(assessment);
+        return assessmentRoleRepository.findByAssessment(assessmentRepository.findById(assessmentId)
+                .orElseThrow(() -> new IllegalArgumentException("Assessment not found")));
     }
     
     /**
@@ -325,32 +215,75 @@ public class AssessmentService {
      */
     public AssessmentDto submitAssessmentContent(UUID assessmentId, UUID userId, uk.ac.sheffield.Assessment_management_tool.dto.request.SubmitAssessmentRequest request) {
         Assessment assessment = assessmentRepository.findById(assessmentId)
-                .orElseThrow(() -> new IllegalArgumentException("Assessment not found: " + assessmentId));
+                .orElseThrow(() -> new IllegalArgumentException("Assessment not found"));
         
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
         
-        // Verify user is a setter
-        List<AssessmentRoleAssignment> roles = assessmentRoleRepository.findByAssessmentAndUser(assessment, user);
-        boolean isSetter = roles.stream()
-                .anyMatch(r -> r.getRole() == uk.ac.sheffield.Assessment_management_tool.domain.enums.AssessmentRole.SETTER);
-        
-        if (!isSetter) {
-            throw new IllegalStateException("Only setters can submit assessment content");
+        if (!assessmentRoleRepository.findByAssessmentAndUser(assessment, user).stream()
+                .anyMatch(r -> r.getRole() == uk.ac.sheffield.Assessment_management_tool.domain.enums.AssessmentRole.SETTER)) {
+            throw new IllegalStateException("Only setters can submit content");
         }
         
-        // Must be in DRAFT state to submit
         if (assessment.getCurrentState() != AssessmentState.DRAFT) {
-            throw new IllegalStateException("Assessment content can only be submitted from DRAFT state. Current state: " + assessment.getCurrentState());
+            throw new IllegalStateException("Can only submit from DRAFT state");
         }
         
-        // Update assessment with content details
         assessment.setDescription(request.getDescription());
         assessment.setFileName(request.getFileName());
         assessment.setFileUrl(request.getFileUrl());
         
-        assessment = assessmentRepository.save(assessment);
+        return EntityMapper.toAssessmentDto(assessmentRepository.save(assessment));
+    }
+    
+    private void autoAssignModerator(Assessment assessment, Module module) {
+        List<ModuleStaffRole> moderators = moduleStaffRoleRepository.findByModuleAndRole(module, ModuleRole.MODERATOR);
+        if (!moderators.isEmpty()) {
+            assessmentRoleRepository.save(new AssessmentRoleAssignment(assessment, moderators.get(0).getUser(), 
+                    uk.ac.sheffield.Assessment_management_tool.domain.enums.AssessmentRole.CHECKER));
+        }
+    }
+    
+    private List<String> getUserRolesForAssessment(Assessment assessment, User user) {
+        List<String> roles = assessmentRoleRepository.findByAssessmentAndUser(assessment, user).stream()
+                .map(r -> r.getRole().name())
+                .collect(Collectors.toList());
         
-        return EntityMapper.toAssessmentDto(assessment);
+        if (roles.isEmpty() && user.getBaseType() == uk.ac.sheffield.Assessment_management_tool.domain.enums.UserBaseType.TEACHING_SUPPORT) {
+            roles.add("ADMIN");
+        }
+        
+        return roles;
+    }
+    
+    private List<Assessment> getAssessmentsForNonAdmin(UUID userId) {
+        List<UUID> userModuleIds = moduleStaffRoleRepository.findByUserId(userId).stream()
+                .map(role -> role.getModule().getId())
+                .collect(Collectors.toList());
+        
+        List<Assessment> moduleAssessments = userModuleIds.stream()
+                .flatMap(moduleId -> assessmentRepository.findByModuleId(moduleId).stream())
+                .collect(Collectors.toList());
+        
+        List<Assessment> roleAssessments = assessmentRoleRepository.findByUserId(userId).stream()
+                .map(AssessmentRoleAssignment::getAssessment)
+                .collect(Collectors.toList());
+        
+        List<Assessment> combined = new java.util.ArrayList<>(moduleAssessments);
+        roleAssessments.forEach(a -> { if (!combined.contains(a)) combined.add(a); });
+        return combined;
+    }
+    
+    private void createTransition(Assessment assessment, User user, TransitionRequest request, boolean isOverride) {
+        AssessmentTransition transition = new AssessmentTransition();
+        transition.setAssessment(assessment);
+        transition.setFromState(assessment.getCurrentState());
+        transition.setToState(request.getTargetState());
+        transition.setByUser(user);
+        transition.setByDisplayName(user.getName());
+        transition.setNote(request.getNote());
+        transition.setOverride(isOverride);
+        transition.setReversion(false);
+        transitionRepository.save(transition);
     }
 }

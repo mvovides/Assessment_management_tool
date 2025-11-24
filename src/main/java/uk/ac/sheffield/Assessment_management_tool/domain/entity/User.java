@@ -46,7 +46,6 @@ public class User {
         createdAt = OffsetDateTime.now();
     }
     
-    // Constructors
     public User() {}
     
     public User(String name, String email, String passwordHash, UserBaseType baseType) {
@@ -56,7 +55,6 @@ public class User {
         this.baseType = baseType;
     }
     
-    // Getters and Setters
     public UUID getId() {
         return id;
     }

@@ -1,4 +1,4 @@
- Assessment Management Tool
+#Assessment Management Tool
 
 A comprehensive web-based system for managing academic assessments through their complete lifecycle, from creation to publication. Built with Spring Boot and React, this tool supports multiple assessment types (coursework, tests, and exams) with robust role-based workflows and state management.
 
@@ -6,7 +6,7 @@ A comprehensive web-based system for managing academic assessments through their
 
 The Assessment Management Tool streamlines the assessment process for universities by providing a structured workflow system that enforces quality checks and maintains audit trails. The system supports independent checker requirements, external examiner feedback, and flexible role assignments while ensuring compliance with academic regulations.
 
- Key Features
+## Key Features
 
 - **Multi-Type Assessment Support**: Manage coursework (CW), tests (TEST), and exams (EXAM) with type-specific workflows
 - **24-State Workflow Engine**: Comprehensive state machine with transition validation and permission checks

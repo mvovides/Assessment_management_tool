@@ -12,7 +12,6 @@ const AdminPage = () => {
   const [showModuleModal, setShowModuleModal] = useState(false);
   const [editingModule, setEditingModule] = useState(null);
   const [uploadMessage, setUploadMessage] = useState('');
-  const [academicYear, setAcademicYear] = useState('2024/25');
   const [newUser, setNewUser] = useState({
     email: '',
     password: '',
@@ -231,7 +230,6 @@ const AdminPage = () => {
     
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('academicYear', academicYear);
 
     try {
       const response = await fetch('/api/admin/import/modules', {
@@ -446,19 +444,6 @@ const AdminPage = () => {
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Import Modules with Assessments</h3>
             
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Academic Year
-                </label>
-                <Input
-                  type="text"
-                  value={academicYear}
-                  onChange={(e) => setAcademicYear(e.target.value)}
-                  placeholder="e.g., 2024/25"
-                  className="max-w-xs"
-                />
-              </div>
-              
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   CSV File Format (No Header Row)

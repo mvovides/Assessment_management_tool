@@ -25,8 +25,7 @@ public class CsvImportController {
     }
     
     @PostMapping("/modules")
-    public ResponseEntity<?> importModules(@RequestParam("file") MultipartFile file,
-                                          @RequestParam(value = "academicYear", required = false, defaultValue = "2024/25") String academicYear) {
+    public ResponseEntity<?> importModules(@RequestParam("file") MultipartFile file) {
         if (file.isEmpty()) {
             return ResponseEntity.badRequest().body(createError("File is required"));
         }
@@ -36,7 +35,7 @@ public class CsvImportController {
         }
         
         try {
-            CsvImportJob job = csvImportService.importModulesWithAssessments(file, academicYear);
+            CsvImportJob job = csvImportService.importModulesWithAssessments(file);
             return ResponseEntity.status(HttpStatus.CREATED).body(job);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)

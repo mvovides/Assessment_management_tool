@@ -109,14 +109,14 @@ VALUES
 -- =============================================================================
 
 -- Test module for Phil McMinn
-INSERT INTO module (id, code, title, academic_year)
+INSERT INTO module (id, code, title)
 VALUES 
-    ('10000000-0000-0000-0000-000000000001', 'COM1001', 'Introduction to Software Engineering', '2024/25');
+    ('10000000-0000-0000-0000-000000000001', 'COM1001', 'Introduction to Software Engineering');
 
 -- Test module for Georg Struth
-INSERT INTO module (id, code, title, academic_year)
+INSERT INTO module (id, code, title)
 VALUES 
-    ('10000000-0000-0000-0000-000000000002', 'COM4507', 'Software and Hardware Verification', '2024/25');
+    ('10000000-0000-0000-0000-000000000002', 'COM4507', 'Software and Hardware Verification');
 
 -- =============================================================================
 -- MODULE STAFF ROLES (for testing filtering)

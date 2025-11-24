@@ -78,7 +78,7 @@ public class CsvImportService {
      * and moderators assigned later. If moderators are provided but not found in the system, 
      * a warning will be logged but the import will continue.
      */
-    public CsvImportJob importModulesWithAssessments(MultipartFile file, String academicYear) {
+    public CsvImportJob importModulesWithAssessments(MultipartFile file) {
         CsvImportJob job = new CsvImportJob(file.getOriginalFilename());
         job.setStatus(ImportJobStatus.RUNNING);
         job = importJobRepository.save(job);
@@ -124,8 +124,8 @@ public class CsvImportService {
                     }
                     
                     // Check if module already exists
-                    Optional<Module> existingModule = moduleRepository.findByCodeAndAcademicYear(
-                            moduleCode.trim().toUpperCase(), academicYear);
+                    Optional<Module> existingModule = moduleRepository.findByCode(
+                            moduleCode.trim().toUpperCase());
                     
                     Module module;
                     if (existingModule.isPresent()) {
@@ -140,7 +140,6 @@ public class CsvImportService {
                         module = new Module();
                         module.setCode(moduleCode.trim().toUpperCase());
                         module.setTitle(moduleTitle.trim());
-                        module.setAcademicYear(academicYear);
                         module = moduleRepository.save(module);
                         moduleCount++;
                     }
@@ -373,8 +372,8 @@ public class CsvImportService {
     
     /**
      * Import modules from CSV file
-     * Expected format: code,title,academicYear
-     * Example: COM1001,Introduction to Programming,2024/25
+     * Expected format: code,title
+     * Example: COM1001,Introduction to Programming
      */
     public CsvImportJob importModules(MultipartFile file) {
         CsvImportJob job = new CsvImportJob(file.getOriginalFilename());
@@ -400,7 +399,6 @@ public class CsvImportService {
                 try {
                     String code = record.get("code");
                     String title = record.get("title");
-                    String academicYear = record.get("academicYear");
                     
                     // Validate required fields
                     if (code == null || code.trim().isEmpty()) {
@@ -411,14 +409,10 @@ public class CsvImportService {
                         errors.add("Line " + lineNumber + ": Module title is required");
                         continue;
                     }
-                    if (academicYear == null || academicYear.trim().isEmpty()) {
-                        errors.add("Line " + lineNumber + ": Academic year is required");
-                        continue;
-                    }
                     
                     // Check if module already exists
-                    if (moduleRepository.findByCodeAndAcademicYear(code.trim(), academicYear.trim()).isPresent()) {
-                        errors.add("Line " + lineNumber + ": Module " + code + " for " + academicYear + " already exists");
+                    if (moduleRepository.findByCode(code.trim()).isPresent()) {
+                        errors.add("Line " + lineNumber + ": Module " + code + " already exists");
                         continue;
                     }
                     
@@ -426,7 +420,6 @@ public class CsvImportService {
                     Module module = new Module();
                     module.setCode(code.trim().toUpperCase());
                     module.setTitle(title.trim());
-                    module.setAcademicYear(academicYear.trim());
                     
                     moduleRepository.save(module);
                     successCount++;
@@ -454,8 +447,8 @@ public class CsvImportService {
     
     /**
      * Import assessments from CSV file
-     * Expected format: moduleCode,academicYear,title,type,examDate
-     * Example: COM1001,2024/25,Final Exam,EXAM,2025-05-15
+     * Expected format: moduleCode,title,type,examDate
+     * Example: COM1001,Final Exam,EXAM,2025-05-15
      */
     public CsvImportJob importAssessments(MultipartFile file) {
         CsvImportJob job = new CsvImportJob(file.getOriginalFilename());
@@ -481,7 +474,6 @@ public class CsvImportService {
                 lineNumber++;
                 try {
                     String moduleCode = record.get("moduleCode");
-                    String academicYear = record.get("academicYear");
                     String title = record.get("title");
                     String typeStr = record.get("type");
                     String examDateStr = record.get("examDate");
@@ -489,10 +481,6 @@ public class CsvImportService {
                     // Validate required fields
                     if (moduleCode == null || moduleCode.trim().isEmpty()) {
                         errors.add("Line " + lineNumber + ": Module code is required");
-                        continue;
-                    }
-                    if (academicYear == null || academicYear.trim().isEmpty()) {
-                        errors.add("Line " + lineNumber + ": Academic year is required");
                         continue;
                     }
                     if (title == null || title.trim().isEmpty()) {
@@ -505,10 +493,10 @@ public class CsvImportService {
                     }
                     
                     // Find module
-                    Optional<Module> moduleOpt = moduleRepository.findByCodeAndAcademicYear(
-                            moduleCode.trim().toUpperCase(), academicYear.trim());
+                    Optional<Module> moduleOpt = moduleRepository.findByCode(
+                            moduleCode.trim().toUpperCase());
                     if (moduleOpt.isEmpty()) {
-                        errors.add("Line " + lineNumber + ": Module " + moduleCode + " for " + academicYear + " not found");
+                        errors.add("Line " + lineNumber + ": Module " + moduleCode + " not found");
                         continue;
                     }
                     

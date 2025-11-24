@@ -45,7 +45,7 @@ public class ModuleService {
     }
     
     public ModuleDto createModule(CreateModuleRequest request) {
-        // Check if module already exists (by code only, academic year not required per spec)
+        // Check if module already exists (by code only)
         if (moduleRepository.findByCode(request.getCode()).isPresent()) {
             throw new IllegalArgumentException("Module already exists: " + request.getCode());
         }
@@ -53,8 +53,6 @@ public class ModuleService {
         Module module = new Module();
         module.setCode(request.getCode());
         module.setTitle(request.getTitle());
-        // Set academic year - use provided value or default (database requires NOT NULL)
-        module.setAcademicYear(request.getAcademicYear() != null ? request.getAcademicYear() : "2024/25");
         
         module = moduleRepository.save(module);
         
@@ -154,10 +152,10 @@ public class ModuleService {
         
         List<Module> modules;
         
-        if (search == null && year == null) {
+        if (search == null) {
             modules = moduleRepository.findAll();
         } else {
-            modules = moduleRepository.searchModulesWithYear(search, year);
+            modules = moduleRepository.searchModules(search);
         }
         
         logger.info("Found {} total modules before filtering", modules.size());
@@ -227,22 +225,12 @@ public class ModuleService {
                 .collect(Collectors.toList());
     }
     
-    public List<ModuleDto> getModulesByYear(String year) {
-        return moduleRepository.findByAcademicYear(year).stream()
-                .map(EntityMapper::toModuleDto)
-                .collect(Collectors.toList());
-    }
-    
     public ModuleDto updateModule(UUID id, CreateModuleRequest request) {
         Module module = moduleRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Module not found: " + id));
         
         module.setCode(request.getCode());
         module.setTitle(request.getTitle());
-        // Set academic year - use provided value or keep existing (database requires NOT NULL)
-        if (request.getAcademicYear() != null) {
-            module.setAcademicYear(request.getAcademicYear());
-        }
         
         module = moduleRepository.save(module);
         

@@ -8,7 +8,7 @@ import java.util.UUID;
 @Entity
 @Table(
     name = "module",
-    uniqueConstraints = @UniqueConstraint(columnNames = {"code", "academic_year"})
+    uniqueConstraints = @UniqueConstraint(columnNames = {"code"})
 )
 public class Module {
     
@@ -17,24 +17,19 @@ public class Module {
     private UUID id;
     
     @NotBlank
-    @Column(nullable = false)
+    @Column(nullable = false, unique = true)
     private String code;
     
     @NotBlank
     @Column(nullable = false)
     private String title;
     
-    @NotBlank
-    @Column(name = "academic_year", nullable = false)
-    private String academicYear;
-    
     // Constructors
     public Module() {}
     
-    public Module(String code, String title, String academicYear) {
+    public Module(String code, String title) {
         this.code = code;
         this.title = title;
-        this.academicYear = academicYear;
     }
     
     // Getters and Setters
@@ -60,13 +55,5 @@ public class Module {
     
     public void setTitle(String title) {
         this.title = title;
-    }
-    
-    public String getAcademicYear() {
-        return academicYear;
-    }
-    
-    public void setAcademicYear(String academicYear) {
-        this.academicYear = academicYear;
     }
 }

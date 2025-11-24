@@ -15,9 +15,6 @@ public class CreateModuleRequest {
     @NotBlank(message = "Module title is required")
     private String title;
     
-    // Academic year is optional (not required per specification)
-    private String academicYear;
-    
     @NotNull(message = "Module lead is required")
     private UUID moduleLeadId;
     
@@ -29,10 +26,9 @@ public class CreateModuleRequest {
     // Constructors
     public CreateModuleRequest() {}
     
-    public CreateModuleRequest(String code, String title, String academicYear) {
+    public CreateModuleRequest(String code, String title) {
         this.code = code;
         this.title = title;
-        this.academicYear = academicYear;
     }
     
     // Getters and Setters
@@ -50,14 +46,6 @@ public class CreateModuleRequest {
     
     public void setTitle(String title) {
         this.title = title;
-    }
-    
-    public String getAcademicYear() {
-        return academicYear;
-    }
-    
-    public void setAcademicYear(String academicYear) {
-        this.academicYear = academicYear;
     }
     
     public UUID getModuleLeadId() {

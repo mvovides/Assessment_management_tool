@@ -25,7 +25,6 @@ public class EntityMapper {
         dto.setId(module.getId());
         dto.setCode(module.getCode());
         dto.setTitle(module.getTitle());
-        dto.setAcademicYear(module.getAcademicYear());
         return dto;
     }
     

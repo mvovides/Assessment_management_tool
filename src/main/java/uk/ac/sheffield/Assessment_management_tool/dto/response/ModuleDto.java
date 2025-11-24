@@ -9,7 +9,6 @@ public class ModuleDto {
     private UUID id;
     private String code;
     private String title;
-    private String academicYear;
     private List<ModuleStaffDto> staff = new ArrayList<>();
     private List<UserDto> externalExaminers = new ArrayList<>();
     private int staffCount;
@@ -42,14 +41,6 @@ public class ModuleDto {
     
     public void setTitle(String title) {
         this.title = title;
-    }
-    
-    public String getAcademicYear() {
-        return academicYear;
-    }
-    
-    public void setAcademicYear(String academicYear) {
-        this.academicYear = academicYear;
     }
     
     public List<ModuleStaffDto> getStaff() {

@@ -7,35 +7,33 @@ skinparam backgroundColor #FFFFFF
 entity "User\n(app_user)" as user {
   * **id** : UUID <<PK>>
   --
-  * name : VARCHAR(255)
+  * name : VARCHAR(500)
   * email : VARCHAR(255) <<UNIQUE>>
-  * password : VARCHAR(255)
+  * password_hash : VARCHAR(255)
   * base_type : VARCHAR(50)
-  * exams_officer : BOOLEAN
+  * is_exams_officer : BOOLEAN
+  * created_at : TIMESTAMP
 }
 
 entity "Module" as module {
   * **id** : UUID <<PK>>
   --
-  * code : VARCHAR(20)
-  * title : VARCHAR(255)
-  * academic_year : VARCHAR(10)
-  --
-  <<UNIQUE>> (code, academic_year)
+  * code : VARCHAR(50) <<UNIQUE>>
+  * title : VARCHAR(500)
 }
 
 entity "Assessment" as assessment {
   * **id** : UUID <<PK>>
   --
   * module_id : UUID <<FK>>
-  * title : VARCHAR(255)
-  * type : VARCHAR(50)
-  * state : VARCHAR(50)
-  deadline : DATE
-  test_date : DATE
+  * title : VARCHAR(500)
+  * type : VARCHAR(20)
+  * current_state : VARCHAR(50)
   exam_date : DATE
-  external_feedback : TEXT
-  setter_response : TEXT
+  description : CLOB
+  file_name : VARCHAR(255)
+  file_url : VARCHAR(500)
+  version : BIGINT
 }
 
 entity "Module Staff Role\n(module_staff_role)" as module_staff {
@@ -48,12 +46,12 @@ entity "Module Staff Role\n(module_staff_role)" as module_staff {
   <<UNIQUE>> (module_id, user_id, role)
 }
 
-entity "Assessment Role\n(assessment_role_assignment)" as assessment_role {
+entity "Assessment Role\n(assessment_role)" as assessment_role {
   * **id** : UUID <<PK>>
   --
   * assessment_id : UUID <<FK>>
   * user_id : UUID <<FK>>
-  * role : VARCHAR(50)
+  * role : VARCHAR(20)
   --
   <<UNIQUE>> (assessment_id, user_id, role)
 }
@@ -67,15 +65,57 @@ entity "Module External Examiner\n(module_external_examiner)" as module_ee {
   <<UNIQUE>> (module_id, examiner_id)
 }
 
-entity "State Transition\n(state_transition)" as transition {
+entity "Assessment Transition\\n(assessment_transition)" as transition {
   * **id** : UUID <<PK>>
   --
   * assessment_id : UUID <<FK>>
   * from_state : VARCHAR(50)
   * to_state : VARCHAR(50)
-  * transitioned_by : UUID <<FK>>
-  * transitioned_at : TIMESTAMP
-  comment : TEXT
+  * by_user_id : UUID <<FK>>
+  * at : TIMESTAMP
+  * by_display_name : VARCHAR(255)
+  note : VARCHAR(2000)
+  is_override : BOOLEAN
+  is_reversion : BOOLEAN
+  reverted_transition_id : UUID <<FK>>
+}
+
+entity "Checker Feedback\\n(checker_feedback)" as checker_feedback {
+  * **id** : UUID <<PK>>
+  --
+  * assessment_id : UUID <<FK>>
+  * author_user_id : UUID <<FK>>
+  * text : VARCHAR(5000)
+  secure_doc_ref : VARCHAR(500)
+  * created_at : TIMESTAMP
+}
+
+entity "External Examiner Feedback\\n(external_examiner_feedback)" as ee_feedback {
+  * **id** : UUID <<PK>>
+  --
+  * assessment_id : UUID <<FK>> <<UNIQUE>>
+  * examiner_user_id : UUID <<FK>>
+  * feedback : VARCHAR(5000)
+  * created_at : TIMESTAMP
+}
+
+entity "Setter Response\\n(setter_response)" as setter_resp {
+  * **id** : UUID <<PK>>
+  --
+  * assessment_id : UUID <<FK>> <<UNIQUE>>
+  * author_user_id : UUID <<FK>>
+  * response_text : VARCHAR(5000)
+  secure_doc_ref : VARCHAR(500)
+  * created_at : TIMESTAMP
+}
+
+entity "CSV Import Job\\n(csv_import_job)" as csv_job {
+  * **id** : UUID <<PK>>
+  --
+  * file_name : VARCHAR(500)
+  * created_at : TIMESTAMP
+  * status : VARCHAR(20)
+  errors : VARCHAR(5000)
 }
 
 ' Relationships
@@ -90,6 +130,13 @@ user ||--o{ transition : "performs"
 
 assessment ||--o{ assessment_role : "has roles"
 assessment ||--o{ transition : "has history"
+assessment ||--o| ee_feedback : "may have (EXAM only)"
+assessment ||--o| setter_resp : "may have (EXAM only)"
+assessment ||--o{ checker_feedback : "has feedback"
+
+user ||--o{ checker_feedback : "provides"
+user ||--o{ ee_feedback : "provides"
+user ||--o{ setter_resp : "authors"
 
 note right of user
   **User Base Types:**
@@ -110,13 +157,17 @@ end note
 
 note right of assessment
   **Assessment Types:**
-  - COURSEWORK (CW)
+  - CW (Coursework)
   - TEST
   - EXAM
   
   **Assessment States:**
   See workflow diagram
   for complete state machine
+  
+  **Content Fields:**
+  - description, file_name, file_url
+  Added in V3 migration
 end note
 
 note right of assessment_role

@@ -25,7 +25,7 @@ READY_FOR_CHECK --> CHANGES_REQUIRED : Checker rejects
 CHANGES_REQUIRED --> READY_FOR_CHECK : Setter resubmits
 
 ' Coursework Path
-READY_FOR_CHECK --> RELEASED : Checker approves\n(Coursework)
+READY_FOR_CHECK --> RELEASED : Checker approves\n(CW)
 STATE RELEASED <<Coursework>>
 STATE DEADLINE_PASSED <<Coursework>>
 RELEASED --> DEADLINE_PASSED : Record deadline
@@ -58,13 +58,13 @@ STATE MARKING <<Common>>
 STATE ADMIN_MARK_CHECK <<Exam>>
 STATE MODERATED <<Common>>
 
-DEADLINE_PASSED --> MARKING : Begin marking\n(Coursework)
-TEST_TAKEN --> MARKING : Begin marking\n(Test)
-EXAM_TAKEN --> MARKING : Begin marking\n(Exam)
+DEADLINE_PASSED --> MARKING : Begin marking\n(CW)
+TEST_TAKEN --> MARKING : Begin marking\n(TEST)
+EXAM_TAKEN --> MARKING : Begin marking\n(EXAM)
 
 MARKING --> ADMIN_MARK_CHECK : Complete marking\n(Exam only)
 ADMIN_MARK_CHECK --> MODERATED : Admin check complete
-MARKING --> MODERATED : Complete marking\n(CW/Test)
+MARKING --> MODERATED : Complete marking\n(CW/TEST)
 
 ' Final states
 STATE FEEDBACK_RETURNED <<Coursework>>
@@ -72,9 +72,9 @@ STATE RESULTS_RETURNED <<Test>>
 STATE APPROVED <<Final>>
 STATE PUBLISHED <<Final>>
 
-MODERATED --> FEEDBACK_RETURNED : Return feedback\n(Coursework)
-MODERATED --> RESULTS_RETURNED : Return results\n(Test)
-MODERATED --> APPROVED : Approve\n(Exam)
+MODERATED --> FEEDBACK_RETURNED : Return feedback\n(CW)
+MODERATED --> RESULTS_RETURNED : Return results\n(TEST)
+MODERATED --> APPROVED : Approve\n(EXAM)
 
 FEEDBACK_RETURNED --> APPROVED : Formal approval\n(Module Lead)
 RESULTS_RETURNED --> APPROVED : Formal approval\n(Module Lead)

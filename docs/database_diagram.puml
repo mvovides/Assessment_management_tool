@@ -14,37 +14,37 @@ TABLE app_user {
     PK id : UUID
     UK email : VARCHAR(255)
     --
-    name : VARCHAR(255) NOT NULL
-    password : VARCHAR(255) NOT NULL
+    name : VARCHAR(500) NOT NULL
+    password_hash : VARCHAR(255) NOT NULL
     base_type : VARCHAR(50) NOT NULL
-    exams_officer : BOOLEAN DEFAULT FALSE
+    is_exams_officer : BOOLEAN DEFAULT FALSE
+    created_at : TIMESTAMP NOT NULL
     --
     CHECK (base_type IN ('TEACHING_SUPPORT', 'ACADEMIC', 'EXTERNAL_EXAMINER'))
 }
 
 TABLE module {
     PK id : UUID
-    UK code, academic_year
+    UK code
     --
-    code : VARCHAR(20) NOT NULL
-    title : VARCHAR(255) NOT NULL
-    academic_year : VARCHAR(10) NOT NULL
+    code : VARCHAR(50) NOT NULL
+    title : VARCHAR(500) NOT NULL
 }
 
 TABLE assessment {
     PK id : UUID
     FK module_id : UUID NOT NULL
     --
-    title : VARCHAR(255) NOT NULL
-    type : VARCHAR(50) NOT NULL
-    state : VARCHAR(50) NOT NULL
-    deadline : DATE
-    test_date : DATE
+    title : VARCHAR(500) NOT NULL
+    type : VARCHAR(20) NOT NULL
+    current_state : VARCHAR(50) NOT NULL
     exam_date : DATE
-    external_feedback : TEXT
-    setter_response : TEXT
+    description : CLOB
+    file_name : VARCHAR(255)
+    file_url : VARCHAR(500)
+    version : BIGINT DEFAULT 0
     --
-    CHECK (type IN ('COURSEWORK', 'TEST', 'EXAM'))
+    CHECK (type IN ('CW', 'TEST', 'EXAM'))
 }
 
 TABLE module_staff_role {
@@ -58,13 +58,13 @@ TABLE module_staff_role {
     CHECK (role IN ('MODULE_LEAD', 'STAFF', 'MODERATOR'))
 }
 
-TABLE assessment_role_assignment {
+TABLE assessment_role {
     PK id : UUID
     FK assessment_id : UUID NOT NULL
     FK user_id : UUID NOT NULL
     UK assessment_id, user_id, role
     --
-    role : VARCHAR(50) NOT NULL
+    role : VARCHAR(20) NOT NULL
     --
     CHECK (role IN ('SETTER', 'CHECKER'))
 }
@@ -76,15 +76,59 @@ TABLE module_external_examiner {
     UK module_id, examiner_id
 }
 
-TABLE state_transition {
+TABLE assessment_transition {
     PK id : UUID
     FK assessment_id : UUID NOT NULL
-    FK transitioned_by : UUID NOT NULL
+    FK by_user_id : UUID
+    FK reverted_transition_id : UUID
     --
-    from_state : VARCHAR(50)
+    from_state : VARCHAR(50) NOT NULL
     to_state : VARCHAR(50) NOT NULL
-    transitioned_at : TIMESTAMP NOT NULL
-    comment : TEXT
+    at : TIMESTAMP NOT NULL
+    by_display_name : VARCHAR(255) NOT NULL
+    note : VARCHAR(2000)
+    is_override : BOOLEAN DEFAULT FALSE
+    is_reversion : BOOLEAN DEFAULT FALSE
+}
+
+TABLE checker_feedback {
+    PK id : UUID
+    FK assessment_id : UUID NOT NULL
+    FK author_user_id : UUID NOT NULL
+    --
+    text : VARCHAR(5000) NOT NULL
+    secure_doc_ref : VARCHAR(500)
+    created_at : TIMESTAMP NOT NULL
+}
+
+TABLE external_examiner_feedback {
+    PK id : UUID
+    FK assessment_id : UUID NOT NULL UNIQUE
+    FK examiner_user_id : UUID NOT NULL
+    --
+    feedback : VARCHAR(5000) NOT NULL
+    created_at : TIMESTAMP NOT NULL
+}
+
+TABLE setter_response {
+    PK id : UUID
+    FK assessment_id : UUID NOT NULL UNIQUE
+    FK author_user_id : UUID NOT NULL
+    --
+    response_text : VARCHAR(5000) NOT NULL
+    secure_doc_ref : VARCHAR(500)
+    created_at : TIMESTAMP NOT NULL
+}
+
+TABLE csv_import_job {
+    PK id : UUID
+    --
+    file_name : VARCHAR(500) NOT NULL
+    created_at : TIMESTAMP NOT NULL
+    status : VARCHAR(20) NOT NULL
+    errors : VARCHAR(5000)
+    --
+    CHECK (status IN ('PENDING', 'RUNNING', 'COMPLETED', 'FAILED'))
 }
 
 ' Relationships
@@ -93,12 +137,19 @@ module "1" -- "*" module_staff_role : has staff
 module "1" -- "*" module_external_examiner : has examiners
 
 app_user "1" -- "*" module_staff_role : has roles
-app_user "1" -- "*" assessment_role_assignment : assigned to
+app_user "1" -- "*" assessment_role : assigned to
 app_user "1" -- "*" module_external_examiner : examines
-app_user "1" -- "*" state_transition : performs
+app_user "1" -- "*" assessment_transition : performs
 
-assessment "1" -- "*" assessment_role_assignment : has roles
-assessment "1" -- "*" state_transition : has history
+assessment "1" -- "*" assessment_role : has roles
+assessment "1" -- "*" assessment_transition : has history
+assessment "1" -- "0..1" external_examiner_feedback : may have
+assessment "1" -- "0..1" setter_response : may have
+assessment "1" -- "*" checker_feedback : has feedback
+
+app_user "1" -- "*" checker_feedback : authors
+app_user "1" -- "*" external_examiner_feedback : provides
+app_user "1" -- "*" setter_response : responds
 
 ' Foreign Key Notes
 note right of assessment
@@ -112,7 +163,7 @@ note right of module_staff_role
   ON DELETE CASCADE
 end note
 
-note right of assessment_role_assignment
+note right of assessment_role
   Foreign Key: assessment_id → assessment(id)
   Foreign Key: user_id → app_user(id)
   ON DELETE CASCADE
@@ -124,10 +175,31 @@ note right of module_external_examiner
   ON DELETE CASCADE
 end note
 
-note right of state_transition
+note right of assessment_transition
   Foreign Key: assessment_id → assessment(id)
-  Foreign Key: transitioned_by → app_user(id)
+  Foreign Key: by_user_id → app_user(id)
+  Foreign Key: reverted_transition_id → assessment_transition(id)
   ON DELETE CASCADE
+end note
+
+note right of checker_feedback
+  Foreign Key: assessment_id → assessment(id)
+  Foreign Key: author_user_id → app_user(id)
+  ON DELETE CASCADE
+end note
+
+note right of external_examiner_feedback
+  Foreign Key: assessment_id → assessment(id)
+  Foreign Key: examiner_user_id → app_user(id)
+  ON DELETE CASCADE
+  One per EXAM assessment
+end note
+
+note right of setter_response
+  Foreign Key: assessment_id → assessment(id)
+  Foreign Key: author_user_id → app_user(id)
+  ON DELETE CASCADE
+  Required after external feedback
 end note
 
 @enduml

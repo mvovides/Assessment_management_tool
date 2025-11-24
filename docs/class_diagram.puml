@@ -31,32 +31,30 @@ package "Domain Entities" {
         - UUID id
         - String code
         - String title
-        - String academicYear
         --
         + getId(): UUID
         + getCode(): String
         + getTitle(): String
-        + getAcademicYear(): String
     }
 
     ENTITY Assessment {
         - UUID id
-        - UUID moduleId
+        - Module module
         - String title
         - AssessmentType type
-        - AssessmentState state
-        - LocalDate deadline
-        - LocalDate testDate
+        - AssessmentState currentState
         - LocalDate examDate
-        - String externalFeedback
-        - String setterResponse
+        - String description
+        - String fileName
+        - String fileUrl
+        - Long version
         --
         + getId(): UUID
-        + getModuleId(): UUID
+        + getModule(): Module
         + getTitle(): String
         + getType(): AssessmentType
-        + getState(): AssessmentState
-        + transitionTo(AssessmentState): void
+        + getCurrentState(): AssessmentState
+        + setCurrentState(AssessmentState): void
     }
 
     ENTITY ModuleStaffRole {
@@ -123,7 +121,7 @@ package "Enumerations" {
     }
 
     ENUM AssessmentType {
-        COURSEWORK
+        CW
         TEST
         EXAM
     }
@@ -170,11 +168,11 @@ package "DTOs" {
         + UUID id
         + String code
         + String title
-        + String academicYear
         + List<ModuleStaffDto> staff
         + List<UserDto> externalExaminers
         + int staffCount
         + int assessmentCount
+        + String userRole
     }
 
     class AssessmentDto {
@@ -182,26 +180,27 @@ package "DTOs" {
         + UUID moduleId
         + String title
         + AssessmentType type
-        + AssessmentState state
-        + LocalDate deadline
-        + LocalDate testDate
+        + AssessmentState currentState
         + LocalDate examDate
-        + List<AssessmentRoleDto> roles
+        + String description
+        + String fileName
+        + String fileUrl
+        + List<String> roles
+        + List<AssessmentState> allowedTargets
     }
 
     class CreateModuleRequest {
         + String code
         + String title
-        + String academicYear
         + UUID moduleLeadId
         + UUID moduleModeratorId
         + List<UUID> staffIds
     }
 
     class CreateAssessmentRequest {
-        + UUID moduleId
         + String title
         + AssessmentType type
+        + LocalDate examDate
     }
 }
 
@@ -282,6 +281,11 @@ package "Controllers" {
 
     CONTROLLER CsvImportController {
         + importModules(MultipartFile, String): ResponseEntity
+    }
+
+    CONTROLLER DevController {
+        + resetDatabase(): ResponseEntity
+        + generateSampleData(): ResponseEntity
     }
 }
 
